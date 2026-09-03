@@ -49,7 +49,11 @@ describe('hasWeightField / hasRepsField / hasDurationField', () => {
 
 describe('formatExerciseDefaults', () => {
   it('menggabungkan set x rep dan beban', () => {
-    const exercise = makeExercise({ defaultSets: 5, defaultReps: 5, defaultWeightKg: 60 })
+    const exercise = makeExercise({
+      defaultSets: 5,
+      defaultReps: 5,
+      defaultWeight: { value: 60, unit: 'kg' },
+    })
     expect(formatExerciseDefaults(exercise)).toBe('5×5 · 60 kg')
   })
 
@@ -59,7 +63,7 @@ describe('formatExerciseDefaults', () => {
       defaultSets: 3,
       defaultDurationSec: 45,
       defaultReps: undefined,
-      defaultWeightKg: undefined,
+      defaultWeight: undefined,
     })
     expect(formatExerciseDefaults(exercise)).toBe('3×45 dtk')
   })
@@ -68,7 +72,7 @@ describe('formatExerciseDefaults', () => {
     const exercise = makeExercise({
       defaultSets: undefined,
       defaultReps: undefined,
-      defaultWeightKg: undefined,
+      defaultWeight: undefined,
       defaultDurationSec: undefined,
     })
     expect(formatExerciseDefaults(exercise)).toBeNull()
@@ -79,23 +83,26 @@ describe('formatWorkoutEntrySummary', () => {
   it('menyembunyikan field yang tidak relevan dengan measurement gerakan', () => {
     const exercise = makeExercise({ measurement: 'reps' })
     const summary = formatWorkoutEntrySummary(
-      { sets: 3, reps: 15, weightKg: 20, durationSec: 30 },
+      { sets: 3, reps: 15, weight: { value: 20, unit: 'kg' }, durationSec: 30 },
       exercise,
     )
-    // weightKg & durationSec diisi tapi tidak relevan untuk measurement 'reps'.
+    // weight & durationSec diisi tapi tidak relevan untuk measurement 'reps'.
     expect(summary).toBe('3 set · 15 rep')
   })
 
   it('mengembalikan string kosong kalau exercise tidak ditemukan', () => {
     expect(
-      formatWorkoutEntrySummary({ sets: 3, reps: 5, weightKg: 0, durationSec: 0 }, undefined),
+      formatWorkoutEntrySummary(
+        { sets: 3, reps: 5, weight: { value: 0, unit: 'kg' }, durationSec: 0 },
+        undefined,
+      ),
     ).toBe('')
   })
 
   it('melewati field bernilai 0 walau relevan dengan measurement-nya', () => {
     const exercise = makeExercise({ measurement: 'weight_reps' })
     const summary = formatWorkoutEntrySummary(
-      { sets: 5, reps: 5, weightKg: 0, durationSec: 0 },
+      { sets: 5, reps: 5, weight: { value: 0, unit: 'kg' }, durationSec: 0 },
       exercise,
     )
     expect(summary).toBe('5 set · 5 rep')

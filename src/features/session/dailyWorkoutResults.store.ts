@@ -49,7 +49,7 @@ export async function fetchLastEntries(
         if (
           entry.sets === 0 &&
           entry.reps === 0 &&
-          entry.weightKg === 0 &&
+          entry.weight.value === 0 &&
           entry.durationSec === 0
         ) {
           continue

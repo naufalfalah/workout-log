@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 const items = [
   { to: '/', label: 'Beranda', icon: HomeIcon },
+  { to: '/exercises', label: 'Gerakan', icon: DumbbellIcon },
   { to: '/history', label: 'Riwayat', icon: ClockIcon },
   { to: '/settings', label: 'Pengaturan', icon: SettingsIcon },
 ]
@@ -64,6 +65,20 @@ function HomeIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
       <path
         d="M4 11.5 12 4l8 7.5M6 9.5V20h5v-5h2v5h5V9.5"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function DumbbellIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M4 9v6M2 10.5v3M20 9v6M22 10.5v3M6 12h12M6 8v8M18 8v8"
         stroke="currentColor"
         strokeWidth={1.8}
         strokeLinecap="round"

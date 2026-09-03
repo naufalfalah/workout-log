@@ -1,12 +1,23 @@
-import type { Equipment, Exercise, MeasurementType, MuscleGroup } from '../domain/types'
+import type {
+  Equipment,
+  Exercise,
+  MeasurementType,
+  MuscleGroup,
+  RoutineItem,
+  Weight,
+} from '@/domain/types'
+
+function formatWeight(weight: Weight): string {
+  return `${weight.value} ${weight.unit}`
+}
 
 export const equipmentOptions: Equipment[] = [
+  'none',
   'barbell',
   'dumbbell',
   'kettlebell',
   'machine',
   'cable',
-  'bodyweight',
   'band',
   'rings',
   'cardio_machine',
@@ -71,10 +82,8 @@ export function hasDurationField(measurement: MeasurementType): boolean {
   return durationMeasurements.includes(measurement)
 }
 
-// Ringkasan nilai default gerakan untuk ditampilkan di daftar/detail,
-// mis. "5×5 · 60 kg" atau "3×45 dtk".
 export function formatExerciseDefaults(exercise: Exercise): string | null {
-  const { defaultSets, defaultReps, defaultDurationSec, defaultWeightKg } = exercise
+  const { defaultSets, defaultReps, defaultDurationSec, defaultWeight } = exercise
   const parts: string[] = []
 
   if (defaultSets && defaultReps) {
@@ -89,9 +98,63 @@ export function formatExerciseDefaults(exercise: Exercise): string | null {
     parts.push(`${defaultSets} set`)
   }
 
-  if (defaultWeightKg) {
-    parts.push(`${defaultWeightKg} kg`)
+  if (defaultWeight && defaultWeight.value > 0) {
+    parts.push(formatWeight(defaultWeight))
   }
+
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
+function formatRepTarget(target: RoutineItem['targetReps']): string | null {
+  if (!target) return null
+  switch (target.type) {
+    case 'fixed':
+      return `${target.value} rep`
+    case 'range':
+      return `${target.min}-${target.max} rep`
+    case 'amrap':
+      return 'AMRAP'
+    case 'time':
+      return `${target.seconds} dtk`
+  }
+}
+
+function formatLoadTarget(target: RoutineItem['targetLoad']): string | null {
+  if (!target) return null
+  switch (target.type) {
+    case 'absolute':
+      return formatWeight(target.weight)
+    case 'percent_1rm':
+      return `${target.percent}% 1RM`
+    case 'rpe':
+      return `RPE ${target.value}`
+    case 'bodyweight':
+      return 'Bodyweight'
+    case 'bodyweight_plus':
+      return `BW +${formatWeight(target.weight)}`
+  }
+}
+
+export function formatRoutineItemTarget(item: RoutineItem): string | null {
+  const parts: string[] = []
+  const repsLabel = formatRepTarget(item.targetReps)
+
+  if (item.targetSets && repsLabel) {
+    parts.push(`${item.targetSets}×${repsLabel}`)
+  } else if (item.targetSets && item.targetDurationSec) {
+    parts.push(`${item.targetSets}×${item.targetDurationSec} dtk`)
+  } else if (repsLabel) {
+    parts.push(repsLabel)
+  } else if (item.targetDurationSec) {
+    parts.push(`${item.targetDurationSec} dtk`)
+  } else if (item.targetSets) {
+    parts.push(`${item.targetSets} set`)
+  }
+
+  const loadLabel = formatLoadTarget(item.targetLoad)
+  if (loadLabel) parts.push(loadLabel)
+
+  if (item.targetDistanceM) parts.push(`${item.targetDistanceM} m`)
 
   return parts.length > 0 ? parts.join(' · ') : null
 }
@@ -100,7 +163,7 @@ export function formatExerciseDefaults(exercise: Exercise): string | null {
 // "3 set · 45 dtk" — dipakai di mana pun entri WorkoutResultEntry
 // ditampilkan (Riwayat, kalender Beranda).
 export function formatWorkoutEntrySummary(
-  entry: { sets: number; reps: number; weightKg: number; durationSec: number },
+  entry: { sets: number; reps: number; weight: Weight; durationSec: number },
   exercise: Exercise | undefined,
 ): string {
   if (!exercise) return ''
@@ -109,8 +172,8 @@ export function formatWorkoutEntrySummary(
   if (hasRepsField(exercise.measurement) && entry.reps > 0) {
     parts.push(`${entry.reps} rep`)
   }
-  if (hasWeightField(exercise.measurement) && entry.weightKg > 0) {
-    parts.push(`${entry.weightKg} kg`)
+  if (hasWeightField(exercise.measurement) && entry.weight.value > 0) {
+    parts.push(formatWeight(entry.weight))
   }
   if (hasDurationField(exercise.measurement) && entry.durationSec > 0) {
     parts.push(`${entry.durationSec} dtk`)

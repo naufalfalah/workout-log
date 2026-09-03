@@ -31,7 +31,8 @@ function seed(
     updatedAt: now,
     defaultSets: defaults.sets,
     defaultReps: defaults.reps,
-    defaultWeightKg: defaults.weightKg,
+    defaultWeight:
+      defaults.weightKg !== undefined ? { value: defaults.weightKg, unit: 'kg' } : undefined,
     defaultDurationSec: defaults.durationSec,
   }
 }

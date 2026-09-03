@@ -22,7 +22,12 @@ export function parseImportFile(text: string): ParseResult {
     return { ok: false, error: 'File bukan JSON yang valid.' }
   }
 
-  const result = importFileSchema.safeParse(json)
+  // Migrasi jalan di JSON mentah, SEBELUM validasi Zod — skema Zod cuma
+  // mengenal bentuk terbaru, jadi file versi lama (mis. weightKg number)
+  // harus diubah bentuk dulu supaya bisa lolos validasi.
+  const migrated = migrateRawToLatest(json)
+
+  const result = importFileSchema.safeParse(migrated)
   if (!result.success) {
     return { ok: false, error: 'File tidak sesuai format ekspor Workout Log.' }
   }
@@ -36,15 +41,67 @@ export function parseImportFile(text: string): ParseResult {
     }
   }
 
-  return { ok: true, file: migrate(file) }
+  return { ok: true, file }
 }
 
-// Rantai migrasi skema lama -> baru. Baru ada schemaVersion 1 sejauh ini,
-// jadi belum ada langkah migrasi nyata — kerangka ini disiapkan supaya
-// penambahan schemaVersion baru nanti tinggal ditambahkan satu langkah di
-// sini, tanpa mengubah alur import lainnya.
-function migrate(file: ImportFile): ImportFile {
-  return file
+// Rantai migrasi skema lama -> baru, dijalankan di atas JSON mentah (belum
+// divalidasi Zod). schemaVersion 1 -> 2: beban pindah dari selalu-kg
+// (weightKg / kg) ke {value, unit} — data lama diasumsikan unit 'kg' karena
+// itu satu-satunya unit yang pernah dipakai sebelum migrasi ini.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function migrateRawToLatest(json: any): unknown {
+  if (typeof json !== 'object' || json === null) return json
+  if (json.schemaVersion !== 1) return json
+
+  const toWeight = (kg: unknown) => ({ value: typeof kg === 'number' ? kg : 0, unit: 'kg' })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const migrateLoadTarget = (target: any) => {
+    if (!target || (target.type !== 'absolute' && target.type !== 'bodyweight_plus')) {
+      return target
+    }
+    const { kg, ...rest } = target
+    return { ...rest, weight: toWeight(kg) }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const migrateEntry = (entry: any) => {
+    const { weightKg, ...rest } = entry
+    return { ...rest, weight: toWeight(weightKg) }
+  }
+
+  return {
+    ...json,
+    schemaVersion: 2,
+    data: {
+      ...json.data,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      exercises: (json.data?.exercises ?? []).map((ex: any) => {
+        const { defaultWeightKg, ...rest } = ex
+        return {
+          ...rest,
+          defaultWeight:
+            typeof defaultWeightKg === 'number' ? toWeight(defaultWeightKg) : undefined,
+        }
+      }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      routines: (json.data?.routines ?? []).map((routine: any) => ({
+        ...routine,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        blocks: (routine.blocks ?? []).map((block: any) => ({
+          ...block,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          items: (block.items ?? []).map((item: any) => ({
+            ...item,
+            targetLoad: migrateLoadTarget(item.targetLoad),
+          })),
+        })),
+      })),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dailyWorkoutResults: (json.data?.dailyWorkoutResults ?? []).map((row: any) => ({
+        ...row,
+        entries: (row.entries ?? []).map(migrateEntry),
+      })),
+    },
+  }
 }
 
 async function snapshotCurrentState(): Promise<void> {

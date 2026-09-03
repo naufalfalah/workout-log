@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ulid } from 'ulid'
 
 import { db } from '@/db/schema'
-import type { Equipment, Exercise, MuscleGroup } from '@/domain/types'
+import type { Equipment, Exercise, MuscleGroup, Weight } from '@/domain/types'
 
 export interface ExerciseDraft {
   name: string
@@ -12,14 +12,14 @@ export interface ExerciseDraft {
   imageUrl?: string
   defaultSets?: number
   defaultReps?: number
-  defaultWeightKg?: number
+  defaultWeight?: Weight
   defaultDurationSec?: number
 }
 
 export interface ExerciseDefaultsPatch {
   defaultSets?: number
   defaultReps?: number
-  defaultWeightKg?: number
+  defaultWeight?: Weight
   defaultDurationSec?: number
 }
 
@@ -49,6 +49,13 @@ export async function addExercise(draft: ExerciseDraft): Promise<string> {
 export async function setExerciseImage(id: string, imageUrl: string | undefined): Promise<void> {
   await db.exercises.update(id, {
     imageUrl,
+    updatedAt: new Date().toISOString(),
+  })
+}
+
+export async function archiveExercise(id: string): Promise<void> {
+  await db.exercises.update(id, {
+    isArchived: true,
     updatedAt: new Date().toISOString(),
   })
 }

@@ -32,6 +32,7 @@ export type MuscleGroup =
   | 'full_body'
 
 export type Equipment =
+  | 'none'
   | 'barbell'
   | 'dumbbell'
   | 'kettlebell'
@@ -43,6 +44,13 @@ export type Equipment =
   | 'cardio_machine'
   | 'other'
 
+export type WeightUnit = 'kg' | 'lb'
+
+export interface Weight {
+  value: number
+  unit: WeightUnit
+}
+
 export interface Exercise extends Auditable {
   id: ID
   name: string
@@ -52,14 +60,37 @@ export interface Exercise extends Auditable {
   primaryMuscles: MuscleGroup[]
   secondaryMuscles?: MuscleGroup[]
   imageUrl?: string // satu gambar per gerakan; data URL selama belum ada penyimpanan file
+  // personalize
   defaultSets?: number
   defaultReps?: number // relevan untuk measurement yang punya komponen reps
-  defaultWeightKg?: number // relevan untuk measurement yang punya komponen beban
+  defaultWeight?: Weight // relevan untuk measurement yang punya komponen beban
   defaultDurationSec?: number // relevan untuk measurement yang punya komponen durasi
   defaultRestSec?: number
+  // status
   isCustom: boolean
   isArchived: boolean
   notes?: string
+}
+
+export interface SimpleRoutineItem {
+  id: ID
+  exerciseId: ID
+  // personalize
+  targetSets?: number
+  targetReps?: RepTarget
+  targetWeight?: Weight
+  targetDurationSec?: number
+  restSec?: number
+  // status
+  notes?: string
+}
+
+export interface SimpleRoutine extends Auditable {
+  id: ID
+  name: string
+  description?: string
+  tags: string[]
+  items: SimpleRoutineItem[]
 }
 
 export type RepTarget =
@@ -69,11 +100,11 @@ export type RepTarget =
   | { type: 'time'; seconds: number }
 
 export type LoadTarget =
-  | { type: 'absolute'; kg: number }
+  | { type: 'absolute'; weight: Weight }
   | { type: 'percent_1rm'; percent: number }
   | { type: 'rpe'; value: number } // 6 sampai 10, boleh 0.5
   | { type: 'bodyweight' }
-  | { type: 'bodyweight_plus'; kg: number }
+  | { type: 'bodyweight_plus'; weight: Weight }
 
 export interface RoutineItem {
   id: ID

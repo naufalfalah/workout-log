@@ -44,6 +44,13 @@ const equipment = z.enum([
   'other',
 ])
 
+const weightUnit = z.enum(['kg', 'lb'])
+
+const weightSchema = z.object({
+  value: z.number(),
+  unit: weightUnit,
+})
+
 const exerciseSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -55,7 +62,7 @@ const exerciseSchema = z.object({
   imageUrl: z.string().optional(),
   defaultSets: z.number().optional(),
   defaultReps: z.number().optional(),
-  defaultWeightKg: z.number().optional(),
+  defaultWeight: weightSchema.optional(),
   defaultDurationSec: z.number().optional(),
   defaultRestSec: z.number().optional(),
   isCustom: z.boolean(),
@@ -74,11 +81,11 @@ const repTarget = z.discriminatedUnion('type', [
 ])
 
 const loadTarget = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('absolute'), kg: z.number() }),
+  z.object({ type: z.literal('absolute'), weight: weightSchema }),
   z.object({ type: z.literal('percent_1rm'), percent: z.number() }),
   z.object({ type: z.literal('rpe'), value: z.number() }),
   z.object({ type: z.literal('bodyweight') }),
-  z.object({ type: z.literal('bodyweight_plus'), kg: z.number() }),
+  z.object({ type: z.literal('bodyweight_plus'), weight: weightSchema }),
 ])
 
 const routineItem = z.object({
@@ -147,7 +154,7 @@ const workoutResultEntrySchema = z.object({
   exerciseId: z.string(),
   sets: z.number(),
   reps: z.number(),
-  weightKg: z.number(),
+  weight: weightSchema,
   durationSec: z.number(),
 })
 

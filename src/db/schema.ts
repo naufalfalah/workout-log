@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 
-import type { Exercise, Routine } from '@/domain/types'
+import type { Exercise, Routine, Weight } from '@/domain/types'
 
 // Gerakan yang dilatih pada satu tanggal. Sengaja menyimpan daftar
 // exerciseId (disalin, bukan referensi ke Routine) supaya riwayat harian
@@ -14,7 +14,7 @@ export interface WorkoutResultEntry {
   exerciseId: string
   sets: number
   reps: number
-  weightKg: number
+  weight: Weight
   durationSec: number
 }
 
@@ -104,6 +104,76 @@ class WorkoutDB extends Dexie {
       settings: 'id',
       recoverySnapshot: 'id',
     })
+    // Beban pindah dari selalu-kg (mis. weightKg / kg) ke {value, unit} —
+    // baris lama dikonversi ke unit 'kg' apa adanya, karena itu satu-satunya
+    // unit yang pernah dipakai sebelum migrasi ini.
+    this.version(7)
+      .stores({
+        exercises: 'id, name, equipment, isCustom, updatedAt',
+        routines: 'id, name, *tags, updatedAt, lastPerformedAt',
+        dailyExerciseLogs: 'date',
+        dailyWorkoutResults: 'date',
+        dailyPlannedTargets: 'date',
+        settings: 'id',
+        recoverySnapshot: 'id',
+      })
+      .upgrade(async (tx) => {
+        const toWeight = (kg: unknown): Weight => ({
+          value: typeof kg === 'number' ? kg : 0,
+          unit: 'kg',
+        })
+
+        await tx
+          .table('exercises')
+          .toCollection()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .modify((exercise: any) => {
+            const kg = exercise.defaultWeightKg
+            delete exercise.defaultWeightKg
+            if (typeof kg === 'number') exercise.defaultWeight = toWeight(kg)
+          })
+
+        await tx
+          .table('routines')
+          .toCollection()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .modify((routine: any) => {
+            for (const block of routine.blocks ?? []) {
+              for (const item of block.items ?? []) {
+                const target = item.targetLoad
+                if (target && (target.type === 'absolute' || target.type === 'bodyweight_plus')) {
+                  const kg = target.kg
+                  delete target.kg
+                  target.weight = toWeight(kg)
+                }
+              }
+            }
+          })
+
+        await tx
+          .table('dailyWorkoutResults')
+          .toCollection()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .modify((row: any) => {
+            for (const entry of row.entries ?? []) {
+              const kg = entry.weightKg
+              delete entry.weightKg
+              entry.weight = toWeight(kg)
+            }
+          })
+
+        await tx
+          .table('dailyPlannedTargets')
+          .toCollection()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .modify((row: any) => {
+            for (const entry of row.entries ?? []) {
+              const kg = entry.weightKg
+              delete entry.weightKg
+              entry.weight = toWeight(kg)
+            }
+          })
+      })
   }
 }
 

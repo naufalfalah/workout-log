@@ -26,13 +26,13 @@ function weightStep(exercise: Exercise): number {
 }
 
 function defaultEntry(exerciseId: string): WorkoutResultEntry {
-  return { exerciseId, sets: 0, reps: 0, weightKg: 0, durationSec: 0 }
+  return { exerciseId, sets: 0, reps: 0, weight: { value: 0, unit: 'kg' }, durationSec: 0 }
 }
 
 // Entri dianggap belum diisi kalau semua nilainya masih 0 — berarti
 // pengguna belum benar-benar mencatat apa pun untuk gerakan ini.
 function isEntryEmpty(entry: WorkoutResultEntry): boolean {
-  return entry.sets === 0 && entry.reps === 0 && entry.weightKg === 0 && entry.durationSec === 0
+  return entry.sets === 0 && entry.reps === 0 && entry.weight.value === 0 && entry.durationSec === 0
 }
 
 export default function ActiveSessionPage() {
@@ -180,10 +180,12 @@ export default function ActiveSessionPage() {
                 />
                 {showWeight && (
                   <NumberStepper
-                    label="Beban (kg)"
-                    value={entry.weightKg}
+                    label={`Beban (${entry.weight.unit})`}
+                    value={entry.weight.value}
                     step={weightStep(exercise)}
-                    onChange={(weightKg) => updateEntry(entry.exerciseId, { weightKg })}
+                    onChange={(value) =>
+                      updateEntry(entry.exerciseId, { weight: { ...entry.weight, value } })
+                    }
                   />
                 )}
                 {showDuration && (
