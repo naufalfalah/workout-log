@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
@@ -57,17 +57,16 @@ export default function ActiveSessionPage() {
   // Isi entri awal sekali saja: pakai hasil yang sudah tersimpan hari ini
   // kalau ada, kalau belum ada mulai dari rencana gerakan (dailyExerciseLogs).
   // Tunggu KEDUA query selesai supaya tidak salah anggap "belum ada hasil"
-  // hanya karena query hasil belum resolve duluan.
-  useEffect(() => {
-    if (initialized) return
-    if (plannedLog === 'loading' || existingResult === 'loading') return
+  // hanya karena query hasil belum resolve duluan. Penyesuaian dilakukan saat
+  // render (bukan di efek) dengan guard `initialized` supaya jalan sekali.
+  if (!initialized && plannedLog !== 'loading' && existingResult !== 'loading') {
+    setInitialized(true)
     if (existingResult) {
       setEntries(existingResult.entries)
     } else if (plannedLog) {
       setEntries(plannedLog.exerciseIds.map(defaultEntry))
     }
-    setInitialized(true)
-  }, [plannedLog, existingResult, initialized])
+  }
 
   function updateEntry(exerciseId: string, patch: Partial<WorkoutResultEntry>) {
     setEntries((prev) =>

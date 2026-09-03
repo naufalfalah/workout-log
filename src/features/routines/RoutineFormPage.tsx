@@ -51,6 +51,7 @@ export default function RoutineFormPage() {
   const [tagsInput, setTagsInput] = useState('')
   const [items, setItems] = useState<ItemDraft[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [seededDefaultItem, setSeededDefaultItem] = useState(false)
 
   // Muat data routine sekali saat mode edit — bukan live query, supaya
   // tidak menimpa perubahan yang sedang diketik pengguna.
@@ -73,11 +74,10 @@ export default function RoutineFormPage() {
     }
   }, [id, isEditing])
 
-  useEffect(() => {
-    if (isEditing) return
-    if (exercises.length === 0) return
+  if (!isEditing && !seededDefaultItem && exercises.length > 0) {
+    setSeededDefaultItem(true)
     setItems((prev) => (prev.length > 0 ? prev : [emptyItem(exercises[0])]))
-  }, [isEditing, exercises])
+  }
 
   if (loadState === 'not-found') {
     return (

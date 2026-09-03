@@ -31,7 +31,7 @@ export default function ImportPanel() {
     if (!file) return
 
     const text = await file.text()
-    const parsed: any = parseImportFile(text)
+    const parsed = parseImportFile(text)
     if (!parsed.ok) {
       setStep({ kind: 'error', message: parsed.error })
       return

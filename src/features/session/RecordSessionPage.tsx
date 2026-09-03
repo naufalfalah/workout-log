@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
@@ -26,14 +26,12 @@ export default function RecordSessionPage() {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null)
-  const initialized = useRef(false)
+  const [initialized, setInitialized] = useState(false)
 
-  useEffect(() => {
-    if (initialized.current) return
-    if (existingLog === 'loading') return
+  if (!initialized && existingLog !== 'loading') {
+    setInitialized(true)
     if (existingLog) setSelectedIds(existingLog.exerciseIds)
-    initialized.current = true
-  }, [existingLog])
+  }
 
   function pickRoutine(routineId: string) {
     const routine = routines.find((r) => r.id === routineId)
@@ -167,11 +165,9 @@ function AddExercisePicker({
   const options = exercises.filter((ex) => !excludeIds.includes(ex.id))
   const [value, setValue] = useState('')
 
-  useEffect(() => {
-    if (options.length > 0 && !options.some((ex) => ex.id === value)) {
-      setValue(options[0].id)
-    }
-  }, [options, value])
+  if (options.length > 0 && !options.some((ex) => ex.id === value)) {
+    setValue(options[0].id)
+  }
 
   if (options.length === 0) return null
 

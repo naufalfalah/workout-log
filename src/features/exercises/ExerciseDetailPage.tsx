@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import PageContainer from '@/app/PageContainer'
@@ -122,7 +122,7 @@ export default function ExerciseDetailPage() {
           <dt className="text-sm text-zinc-400">Cara diukur</dt>
           <dd>{measurementLabels[exercise.measurement]}</dd>
         </div>
-        <DefaultsEditor exercise={exercise} />
+        <DefaultsEditor key={exercise.id} exercise={exercise} />
         {exercise.defaultRestSec !== undefined && (
           <div>
             <dt className="text-sm text-zinc-400">Istirahat default</dt>
@@ -178,11 +178,11 @@ export default function ExerciseDetailPage() {
 }
 
 function DefaultsEditor({ exercise }: { exercise: Exercise }) {
-  const [sets, setSets] = useState(0)
-  const [reps, setReps] = useState(0)
-  const [weightValue, setWeightValue] = useState(0)
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg')
-  const [durationSec, setDurationSec] = useState(0)
+  const [sets, setSets] = useState(exercise.defaultSets ?? 0)
+  const [reps, setReps] = useState(exercise.defaultReps ?? 0)
+  const [weightValue, setWeightValue] = useState(exercise.defaultWeight?.value ?? 0)
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(exercise.defaultWeight?.unit ?? 'kg')
+  const [durationSec, setDurationSec] = useState(exercise.defaultDurationSec ?? 0)
   const [saved, setSaved] = useState(false)
 
   const weightStep = weightUnit === 'kg' ? 1 : 11
@@ -198,16 +198,6 @@ function DefaultsEditor({ exercise }: { exercise: Exercise }) {
     setWeightValue(0)
     setSaved(false)
   }
-
-  useEffect(() => {
-    setSets(exercise.defaultSets ?? 0)
-    setReps(exercise.defaultReps ?? 0)
-    setWeightValue(exercise.defaultWeight?.value ?? 0)
-    setWeightUnit(exercise.defaultWeight?.unit ?? 'kg')
-    setDurationSec(exercise.defaultDurationSec ?? 0)
-    setSaved(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exercise.id])
 
   async function handleSave() {
     await updateExerciseDefaults(exercise.id, {
