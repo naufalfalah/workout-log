@@ -73,71 +73,23 @@ const exerciseSchema = z.object({
   deletedAt: isoDate.optional(),
 })
 
-const repTarget = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('fixed'), value: z.number() }),
-  z.object({ type: z.literal('range'), min: z.number(), max: z.number() }),
-  z.object({ type: z.literal('amrap') }),
-  z.object({ type: z.literal('time'), seconds: z.number() }),
-])
-
-const loadTarget = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('absolute'), weight: weightSchema }),
-  z.object({ type: z.literal('percent_1rm'), percent: z.number() }),
-  z.object({ type: z.literal('rpe'), value: z.number() }),
-  z.object({ type: z.literal('bodyweight') }),
-  z.object({ type: z.literal('bodyweight_plus'), weight: weightSchema }),
-])
-
-const routineItem = z.object({
+const simpleRoutineItem = z.object({
   id: z.string(),
   exerciseId: z.string(),
   targetSets: z.number().optional(),
-  targetReps: repTarget.optional(),
-  targetLoad: loadTarget.optional(),
+  targetReps: z.number().optional(),
+  targetWeight: weightSchema.optional(),
   targetDurationSec: z.number().optional(),
-  targetDistanceM: z.number().optional(),
-  tempo: z.string().optional(),
   restSec: z.number().optional(),
   notes: z.string().optional(),
 })
 
-const blockConfig = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('straight') }),
-  z.object({ kind: z.literal('superset'), restBetweenPairsSec: z.number().optional() }),
-  z.object({
-    kind: z.literal('circuit'),
-    rounds: z.number(),
-    restBetweenRoundsSec: z.number().optional(),
-  }),
-  z.object({ kind: z.literal('amrap'), timeCapSec: z.number() }),
-  z.object({ kind: z.literal('emom'), intervalSec: z.number(), totalIntervals: z.number() }),
-  z.object({ kind: z.literal('for_time'), rounds: z.number(), timeCapSec: z.number().optional() }),
-  z.object({
-    kind: z.literal('interval'),
-    workSec: z.number(),
-    restSec: z.number(),
-    rounds: z.number(),
-  }),
-])
-
-const routineBlock = z.object({
-  id: z.string(),
-  label: z.string().optional(),
-  config: blockConfig,
-  items: z.array(routineItem),
-  restAfterSec: z.number().optional(),
-  notes: z.string().optional(),
-})
-
-const routineSchema = z.object({
+const simpleRoutineSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional(),
   tags: z.array(z.string()),
-  blocks: z.array(routineBlock),
-  estimatedDurationMin: z.number().optional(),
-  lastPerformedAt: isoDate.optional(),
-  timesPerformed: z.number(),
+  items: z.array(simpleRoutineItem),
   createdAt: isoDate,
   updatedAt: isoDate,
   deletedAt: isoDate.optional(),
@@ -170,7 +122,7 @@ export const importFileSchema = z.object({
   counts: z.record(z.string(), z.number()).optional(),
   data: z.object({
     exercises: z.array(exerciseSchema).default([]),
-    routines: z.array(routineSchema).default([]),
+    routines: z.array(simpleRoutineSchema).default([]),
     dailyExerciseLogs: z.array(dailyExerciseLogSchema).default([]),
     dailyWorkoutResults: z.array(dailyWorkoutResultSchema).default([]),
   }),
@@ -178,4 +130,4 @@ export const importFileSchema = z.object({
 
 export type ImportFile = z.infer<typeof importFileSchema>
 export type ImportedExercise = z.infer<typeof exerciseSchema>
-export type ImportedRoutine = z.infer<typeof routineSchema>
+export type ImportedRoutine = z.infer<typeof simpleRoutineSchema>

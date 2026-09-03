@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 
-import type { Exercise, Routine, Weight } from '@/domain/types'
+import type { Exercise, SimpleRoutine, Weight } from '@/domain/types'
 
 // Gerakan yang dilatih pada satu tanggal. Sengaja menyimpan daftar
 // exerciseId (disalin, bukan referensi ke Routine) supaya riwayat harian
@@ -48,7 +48,7 @@ export interface RecoverySnapshot {
   createdAt: string // ISODate
   data: {
     exercises: Exercise[]
-    routines: Routine[]
+    routines: SimpleRoutine[]
     dailyExerciseLogs: DailyExerciseLog[]
     dailyWorkoutResults: DailyWorkoutResult[]
   }
@@ -56,7 +56,7 @@ export interface RecoverySnapshot {
 
 class WorkoutDB extends Dexie {
   exercises!: EntityTable<Exercise, 'id'>
-  routines!: EntityTable<Routine, 'id'>
+  routines!: EntityTable<SimpleRoutine, 'id'>
   dailyExerciseLogs!: EntityTable<DailyExerciseLog, 'date'>
   dailyWorkoutResults!: EntityTable<DailyWorkoutResult, 'date'>
   dailyPlannedTargets!: EntityTable<DailyPlannedTargets, 'date'>
@@ -178,9 +178,3 @@ class WorkoutDB extends Dexie {
 }
 
 export const db = new WorkoutDB()
-
-// 'populate' hanya berjalan sekali, saat database dibuat pertama kali
-// db.on('populate', () => {
-//   db.exercises.bulkAdd(exercisesSeed)
-//   db.routines.bulkAdd(routinesSeed())
-// })

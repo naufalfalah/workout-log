@@ -2,32 +2,31 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ulid } from 'ulid'
 
 import { db } from '@/db/schema'
-import type { Routine, RoutineBlock } from '@/domain/types'
+import type { SimpleRoutine, SimpleRoutineItem } from '@/domain/types'
 
 export interface RoutineDraft {
   name: string
   tags: string[]
-  blocks: RoutineBlock[]
+  items: SimpleRoutineItem[]
 }
 
-export function useRoutines(): Routine[] {
+export function useRoutines(): SimpleRoutine[] {
   return useLiveQuery(() => db.routines.toArray(), []) ?? []
 }
 
 // Pengambilan sekali (bukan live query) untuk memuat data awal form edit —
 // dipakai lewat useEffect supaya state form hanya di-seed sekali, bukan
 // ditimpa ulang tiap kali data di DB berubah.
-export async function getRoutine(id: string): Promise<Routine | undefined> {
+export async function getRoutine(id: string): Promise<SimpleRoutine | undefined> {
   return db.routines.get(id)
 }
 
 export async function addRoutine(draft: RoutineDraft): Promise<string> {
   const now = new Date().toISOString()
   const id = ulid()
-  const routine: Routine = {
+  const routine: SimpleRoutine = {
     id,
     ...draft,
-    timesPerformed: 0,
     createdAt: now,
     updatedAt: now,
   }

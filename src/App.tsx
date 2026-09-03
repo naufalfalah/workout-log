@@ -2,6 +2,8 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import AppNav from './app/AppNav'
 import UpdateToast from './app/UpdateToast'
 import HomePage from './features/home/HomePage'
+import RoutineListPage from './features/routines/RoutineListPage'
+import RoutineFormPage from './features/routines/RoutineFormPage'
 import ExerciseListPage from './features/exercises/ExerciseListPage'
 import ExerciseFormPage from './features/exercises/ExerciseFormPage'
 import ExerciseDetailPage from './features/exercises/ExerciseDetailPage'
@@ -15,6 +17,9 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/routines" element={<RoutineListPage />} />
+        <Route path="/routines/new" element={<RoutineFormPage />} />
+        <Route path="/routines/:id/edit" element={<RoutineFormPage />} />
         <Route path="/exercises" element={<ExerciseListPage />} />
         <Route path="/exercises/new" element={<ExerciseFormPage />} />
         <Route path="/exercises/:id" element={<ExerciseDetailPage />} />

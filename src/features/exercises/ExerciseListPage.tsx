@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import ConfirmDialog from '@/app/ConfirmDialog'
 import PageContainer from '@/app/PageContainer'
 import type { Equipment, MuscleGroup } from '@/domain/types'
 import {
@@ -22,6 +23,7 @@ export default function ExerciseListPage() {
   const [equipment, setEquipment] = useState<Equipment | 'all'>('all')
   const [muscle, setMuscle] = useState<MuscleGroup | 'all'>('all')
   const [source, setSource] = useState<SourceFilter>('all')
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -45,6 +47,15 @@ export default function ExerciseListPage() {
     setEquipment('all')
     setMuscle('all')
     setSource('all')
+  }
+
+  const exerciseToDelete = exercises.find((ex) => ex.id === deleteTarget)
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    const id = deleteTarget
+    setDeleteTarget(null)
+    await archiveExercise(id)
   }
 
   return (
@@ -144,7 +155,7 @@ export default function ExerciseListPage() {
       <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((ex) => (
           <li key={ex.id}>
-            <SwipeToDelete onDelete={() => archiveExercise(ex.id)}>
+            <SwipeToDelete onDelete={() => setDeleteTarget(ex.id)}>
               <Link
                 to={`/exercises/${ex.id}`}
                 className="flex items-center justify-between gap-3 bg-zinc-900 px-4 py-3 active:bg-zinc-800"
@@ -184,6 +195,17 @@ export default function ExerciseListPage() {
       {filtered.length === 0 && (
         <p className="mt-8 text-center text-zinc-500">Tidak ada gerakan yang cocok.</p>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Hapus gerakan ini?"
+        message={`Gerakan "${exerciseToDelete?.name ?? ''}" akan disembunyikan dari pustaka. Routine dan riwayat yang masih memakainya tidak akan terpengaruh.`}
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        danger
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </PageContainer>
   )
 }

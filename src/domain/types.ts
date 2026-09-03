@@ -77,7 +77,7 @@ export interface SimpleRoutineItem {
   exerciseId: ID
   // personalize
   targetSets?: number
-  targetReps?: RepTarget
+  targetReps?: number
   targetWeight?: Weight
   targetDurationSec?: number
   restSec?: number

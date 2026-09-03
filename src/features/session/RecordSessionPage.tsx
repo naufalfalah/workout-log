@@ -38,7 +38,7 @@ export default function RecordSessionPage() {
   function pickRoutine(routineId: string) {
     const routine = routines.find((r) => r.id === routineId)
     if (!routine) return
-    const ids = routine.blocks.flatMap((block) => block.items.map((item) => item.exerciseId))
+    const ids = routine.items.map((item) => item.exerciseId)
     setSelectedRoutineId(routineId)
     setSelectedIds(ids)
   }

@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+
 import { db, type DailyExerciseLog, type DailyWorkoutResult } from '@/db/schema'
-import type { Exercise, Routine } from '@/domain/types'
+import type { Exercise, SimpleRoutine } from '@/domain/types'
 import { importFileSchema, type ImportFile } from './importSchema'
 import { EXPORT_SCHEMA_VERSION } from './schemaVersion'
 
@@ -86,14 +87,15 @@ function migrateRawToLatest(json: any): unknown {
       routines: (json.data?.routines ?? []).map((routine: any) => ({
         ...routine,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        blocks: (routine.blocks ?? []).map((block: any) => ({
-          ...block,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          items: (block.items ?? []).map((item: any) => ({
-            ...item,
-            targetLoad: migrateLoadTarget(item.targetLoad),
-          })),
-        })),
+        items: (routine.items ?? []).map((item: any) => {
+          const { targetLoad, ...rest } = item
+          const migratedLoad = migrateLoadTarget(targetLoad)
+          const targetWeight =
+            migratedLoad?.type === 'absolute' || migratedLoad?.type === 'bodyweight_plus'
+              ? migratedLoad.weight
+              : undefined
+          return targetWeight ? { ...rest, targetWeight } : rest
+        }),
       })),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       dailyWorkoutResults: (json.data?.dailyWorkoutResults ?? []).map((row: any) => ({
@@ -194,7 +196,7 @@ export async function runImport(file: ImportFile, mode: ImportMode): Promise<Imp
         ])
         await Promise.all([
           db.exercises.bulkAdd(file.data.exercises as Exercise[]),
-          db.routines.bulkAdd(file.data.routines as Routine[]),
+          db.routines.bulkAdd(file.data.routines as SimpleRoutine[]),
           db.dailyExerciseLogs.bulkAdd(file.data.dailyExerciseLogs),
           db.dailyWorkoutResults.bulkAdd(file.data.dailyWorkoutResults),
         ])
@@ -207,7 +209,11 @@ export async function runImport(file: ImportFile, mode: ImportMode): Promise<Imp
       }
 
       await mergeAuditable<Exercise>(db.exercises, file.data.exercises as Exercise[], summary)
-      await mergeAuditable<Routine>(db.routines, file.data.routines as Routine[], summary)
+      await mergeAuditable<SimpleRoutine>(
+        db.routines,
+        file.data.routines as SimpleRoutine[],
+        summary,
+      )
       await mergeByDateKey<DailyExerciseLog>(
         db.dailyExerciseLogs,
         file.data.dailyExerciseLogs,

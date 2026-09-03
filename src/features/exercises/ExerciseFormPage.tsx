@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import PageContainer from '@/app/PageContainer'
 import type { Equipment, MuscleGroup, WeightUnit } from '@/domain/types'
+import { weightStepForUnit } from '@/lib/weight'
 import { readImageAsDataUrl } from '@/lib/imageFile'
 import {
   equipmentOptions,
@@ -30,8 +31,6 @@ export default function ExerciseFormPage() {
   const [defaultWeightUnit, setDefaultWeightUnit] = useState<WeightUnit>('kg')
   const [defaultDurationSec, setDefaultDurationSec] = useState(0)
   const [error, setError] = useState<string | null>(null)
-
-  const weightStep = defaultWeightUnit === 'kg' ? 1 : 11
 
   function handleWeightUnitChange(unit: WeightUnit) {
     if (unit === defaultWeightUnit) return
@@ -203,7 +202,7 @@ export default function ExerciseFormPage() {
                 <NumberStepper
                   label={`Beban (${defaultWeightUnit})`}
                   value={defaultWeightValue}
-                  step={weightStep}
+                  step={weightStepForUnit(defaultWeightUnit)}
                   onChange={setDefaultWeightValue}
                 />
                 <div className="flex overflow-hidden rounded-lg bg-zinc-800 text-xs">
