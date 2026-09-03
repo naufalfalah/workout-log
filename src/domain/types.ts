@@ -1,5 +1,5 @@
-export type ID = string
-export type ISODate = string
+export type ID = string // ULID, urut berdasarkan waktu
+export type ISODate = string // "2026-09-02T07:30:00.000Z"
 
 export interface Auditable {
   createdAt: ISODate
@@ -64,26 +64,26 @@ export interface Exercise extends Auditable {
 
 export type RepTarget =
   | { type: 'fixed'; value: number }
-  | { type: 'range'; min: number; max: number }
-  | { type: 'amrap' }
+  | { type: 'range'; min: number; max: number } // "8-12"
+  | { type: 'amrap' } // sebanyak mungkin
   | { type: 'time'; seconds: number }
 
 export type LoadTarget =
   | { type: 'absolute'; kg: number }
   | { type: 'percent_1rm'; percent: number }
-  | { type: 'rpe'; value: number }
+  | { type: 'rpe'; value: number } // 6 sampai 10, boleh 0.5
   | { type: 'bodyweight' }
   | { type: 'bodyweight_plus'; kg: number }
 
 export interface RoutineItem {
   id: ID
   exerciseId: ID
-  targetSets?: number
+  targetSets?: number // hanya untuk straight/superset
   targetReps?: RepTarget
   targetLoad?: LoadTarget
   targetDurationSec?: number
   targetDistanceM?: number
-  tempo?: string
+  tempo?: string // "3-1-1-0"
   restSec?: number
   notes?: string
 }
@@ -99,7 +99,7 @@ export type BlockConfig =
 
 export interface RoutineBlock {
   id: ID
-  label?: string
+  label?: string // "A1", "Metcon", "Finisher"
   config: BlockConfig
   items: RoutineItem[]
   restAfterSec?: number
@@ -110,7 +110,7 @@ export interface Routine extends Auditable {
   id: ID
   name: string
   description?: string
-  tags: string[]
+  tags: string[] // "push", "metcon", "upper"
   blocks: RoutineBlock[]
   estimatedDurationMin?: number
   lastPerformedAt?: ISODate
