@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../../db/schema'
 
-const SCHEMA_VERSION = 1
+import { db } from '@/db/schema'
+import { EXPORT_SCHEMA_VERSION } from './schemaVersion'
 
 export function useLastExportAt(): string | undefined {
   const settings = useLiveQuery(() => db.settings.get('app'), [])
@@ -20,7 +20,7 @@ export async function exportAllData(): Promise<void> {
 
   const payload = {
     schema: 'workout-log.export',
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: EXPORT_SCHEMA_VERSION,
     exportedAt,
     counts: {
       exercises: exercises.length,

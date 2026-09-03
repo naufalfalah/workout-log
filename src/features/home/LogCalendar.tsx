@@ -12,9 +12,10 @@ import {
   subMonths,
 } from 'date-fns'
 import { id } from 'date-fns/locale'
-import { formatWorkoutEntrySummary } from '../../components/exerciseLabels'
+
+import { formatWorkoutEntrySummary } from '@/components/exerciseLabels'
+import PhotoPlaceholderIcon from '@/components/PhotoPlaceholderIcon'
 import { useExercises } from '../exercises/exercises.store'
-import PhotoPlaceholderIcon from '../../components/PhotoPlaceholderIcon'
 import {
   useDailyWorkoutResult,
   useDailyWorkoutResultDates,

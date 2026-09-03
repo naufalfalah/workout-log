@@ -1,6 +1,7 @@
 import { differenceInDays, format } from 'date-fns'
 import { Link } from 'react-router-dom'
-import PageContainer from '../../app/PageContainer'
+
+import PageContainer from '@/app/PageContainer'
 import { exportAllData, useLastExportAt } from '../backup/export'
 import { useDailyExerciseLog } from '../session/dailyExerciseLogs.store'
 import LogCalendar from './LogCalendar'

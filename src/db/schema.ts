@@ -1,7 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Exercise, Routine } from '../domain/types'
-import { exercisesSeed } from './seeders/exercises.seed'
-import { routinesSeed } from '../db/seeders/routines.seed'
+
+import type { Exercise, Routine } from '@/domain/types'
 
 // Gerakan yang dilatih pada satu tanggal. Sengaja menyimpan daftar
 // exerciseId (disalin, bukan referensi ke Routine) supaya riwayat harian
@@ -27,9 +26,32 @@ export interface DailyWorkoutResult {
   entries: WorkoutResultEntry[]
 }
 
+// Tabel sementara: nilai target (set/rep/beban/durasi) hasil terjemahan dari
+// RoutineItem routine yang dipilih di /session, dikirim ke /session/active
+// sebagai nilai awal input numerik. Baris dihapus begitu sesi difinalisasi
+// atau dibatalkan — tidak dianggap data historis, jadi tidak ikut ekspor/impor.
+export interface DailyPlannedTargets {
+  date: string // 'yyyy-MM-dd'
+  entries: WorkoutResultEntry[]
+}
+
 export interface AppSettings {
   id: 'app'
   lastExportAt?: string // ISODate
+}
+
+// Snapshot sekali pakai dari seluruh data sebelum impor dijalankan (bagian
+// 8.2 spesifikasi) — supaya impor yang keliru masih bisa dipulihkan. Baris
+// tunggal (id selalu 'latest'), ditimpa tiap kali impor baru dijalankan.
+export interface RecoverySnapshot {
+  id: 'latest'
+  createdAt: string // ISODate
+  data: {
+    exercises: Exercise[]
+    routines: Routine[]
+    dailyExerciseLogs: DailyExerciseLog[]
+    dailyWorkoutResults: DailyWorkoutResult[]
+  }
 }
 
 class WorkoutDB extends Dexie {
@@ -37,7 +59,9 @@ class WorkoutDB extends Dexie {
   routines!: EntityTable<Routine, 'id'>
   dailyExerciseLogs!: EntityTable<DailyExerciseLog, 'date'>
   dailyWorkoutResults!: EntityTable<DailyWorkoutResult, 'date'>
+  dailyPlannedTargets!: EntityTable<DailyPlannedTargets, 'date'>
   settings!: EntityTable<AppSettings, 'id'>
+  recoverySnapshot!: EntityTable<RecoverySnapshot, 'id'>
 
   constructor() {
     super('workout-log')
@@ -63,13 +87,30 @@ class WorkoutDB extends Dexie {
       dailyWorkoutResults: 'date',
       settings: 'id',
     })
+    this.version(5).stores({
+      exercises: 'id, name, equipment, isCustom, updatedAt',
+      routines: 'id, name, *tags, updatedAt, lastPerformedAt',
+      dailyExerciseLogs: 'date',
+      dailyWorkoutResults: 'date',
+      settings: 'id',
+      recoverySnapshot: 'id',
+    })
+    this.version(6).stores({
+      exercises: 'id, name, equipment, isCustom, updatedAt',
+      routines: 'id, name, *tags, updatedAt, lastPerformedAt',
+      dailyExerciseLogs: 'date',
+      dailyWorkoutResults: 'date',
+      dailyPlannedTargets: 'date',
+      settings: 'id',
+      recoverySnapshot: 'id',
+    })
   }
 }
 
 export const db = new WorkoutDB()
 
 // 'populate' hanya berjalan sekali, saat database dibuat pertama kali
-db.on('populate', () => {
-  db.exercises.bulkAdd(exercisesSeed)
-  db.routines.bulkAdd(routinesSeed())
-})
+// db.on('populate', () => {
+//   db.exercises.bulkAdd(exercisesSeed)
+//   db.routines.bulkAdd(routinesSeed())
+// })

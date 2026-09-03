@@ -1,5 +1,5 @@
 import { ulid } from 'ulid'
-import type { Routine } from '../../domain/types'
+import type { Routine } from '@/domain/types'
 
 // Data contoh untuk pengembangan awal, hanya ditambahkan sekali saat
 // database pertama kali dibuat (lihat db/schema.ts, event 'populate').

@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ulid } from 'ulid'
-import { db } from '../../db/schema'
-import type { Equipment, Exercise, MuscleGroup } from '../../domain/types'
+
+import { db } from '@/db/schema'
+import type { Equipment, Exercise, MuscleGroup } from '@/domain/types'
 
 export interface ExerciseDraft {
   name: string

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Exercise } from '../domain/types'
-import { label } from '../components/exerciseLabels'
-import PhotoPlaceholderIcon from '../components/PhotoPlaceholderIcon'
+
+import type { Exercise } from '@/domain/types'
+import { label } from './exerciseLabels'
+import PhotoPlaceholderIcon from './PhotoPlaceholderIcon'
 
 interface ExercisePickerProps {
   exercises: Exercise[]

@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
@@ -6,6 +7,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,
@@ -36,7 +42,7 @@ export default defineConfig({
             purpose: 'maskable',
           },
         ],
-        shortcuts: [{ name: 'Mulai latihan', url: '/session/new' }],
+        shortcuts: [{ name: 'Mulai latihan', url: '/session' }],
       },
       workbox: {
         // Tidak ada API eksternal, jadi seluruh app shell di-precache

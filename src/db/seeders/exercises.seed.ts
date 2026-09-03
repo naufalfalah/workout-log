@@ -1,4 +1,4 @@
-import type { Exercise } from '../../domain/types'
+import type { Exercise } from '@/domain/types'
 
 // Seed kecil untuk pengembangan awal. Daftar lengkap 80-120 gerakan
 // (bagian 4.2 spesifikasi) menyusul saat fitur Library Gerakan dibangun.

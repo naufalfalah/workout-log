@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ulid } from 'ulid'
-import { db } from '../../db/schema'
-import type { Routine, RoutineBlock } from '../../domain/types'
+
+import { db } from '@/db/schema'
+import type { Routine, RoutineBlock } from '@/domain/types'
 
 export interface RoutineDraft {
   name: string

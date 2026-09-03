@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { Exercise } from '../domain/types'
+
+import type { Exercise } from '@/domain/types'
 import ExercisePicker from './ExercisePicker'
 
 function makeExercise(overrides: Partial<Exercise> = {}): Exercise {
