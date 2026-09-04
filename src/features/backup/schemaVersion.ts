@@ -1,1 +1,1 @@
-export const EXPORT_SCHEMA_VERSION = 2
+export const EXPORT_SCHEMA_VERSION = 4

@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type DailyExerciseLog } from '../../db/schema'
+
+import { db, type DailyExerciseLog, type WorkoutResultEntry } from '@/db/schema'
 
 // 'loading' = query belum selesai; null = sudah selesai, sungguh tidak ada
 // data untuk tanggal ini. Dibedakan secara eksplisit karena Dexie.get()
@@ -13,10 +14,13 @@ export function useDailyExerciseLog(dateKey: string): DailyExerciseLog | null | 
   )
 }
 
-export async function saveDailyExerciseLog(dateKey: string, exerciseIds: string[]): Promise<void> {
-  if (exerciseIds.length === 0) {
+export async function saveDailyExerciseLog(
+  dateKey: string,
+  entries: WorkoutResultEntry[],
+): Promise<void> {
+  if (entries.length === 0) {
     await db.dailyExerciseLogs.delete(dateKey)
   } else {
-    await db.dailyExerciseLogs.put({ date: dateKey, exerciseIds })
+    await db.dailyExerciseLogs.put({ date: dateKey, entries })
   }
 }

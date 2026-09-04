@@ -8,25 +8,18 @@ import PageContainer from '@/app/PageContainer'
 import type { Exercise } from '@/domain/types'
 import type { WorkoutResultEntry } from '@/db/schema'
 import { hasDurationField, hasWeightField, label } from '@/components/exerciseLabels'
+import NumberStepper from '@/components/NumberStepper'
 import PhotoPlaceholderIcon from '@/components/PhotoPlaceholderIcon'
 import { useExercises } from '../exercises/exercises.store'
 import { saveDailyExerciseLog, useDailyExerciseLog } from './dailyExerciseLogs.store'
-import { saveDailyWorkoutResult, useDailyWorkoutResult } from './dailyWorkoutResults.store'
+import { saveDailyWorkoutResult } from './dailyWorkoutResults.store'
 
 function todayKey(): string {
   return format(new Date(), 'yyyy-MM-dd')
 }
 
-function roundStep(value: number): number {
-  return Math.round(value * 10) / 10
-}
-
 function weightStep(exercise: Exercise): number {
   return exercise.equipment === 'dumbbell' ? 1 : 2.5
-}
-
-function defaultEntry(exerciseId: string): WorkoutResultEntry {
-  return { exerciseId, sets: 0, reps: 0, weight: { value: 0, unit: 'kg' }, durationSec: 0 }
 }
 
 // Entri dianggap belum diisi kalau semua nilainya masih 0 — berarti
@@ -41,7 +34,6 @@ export default function ActiveSessionPage() {
 
   const exercises = useExercises()
   const plannedLog = useDailyExerciseLog(dateKey)
-  const existingResult = useDailyWorkoutResult(dateKey)
 
   const [entries, setEntries] = useState<WorkoutResultEntry[]>([])
   // Baru menampilkan tanda merah pada kartu yang kosong setelah pengguna
@@ -49,23 +41,20 @@ export default function ActiveSessionPage() {
   // merah saat halaman pertama kali dibuka.
   const [showValidation, setShowValidation] = useState(false)
   // State (bukan ref) supaya perubahan selalu memicu render ulang, termasuk
-  // saat tidak ada entries yang perlu di-set (plannedLog & existingResult
-  // sama-sama kosong) — ref saja tidak akan memicu re-render di kasus itu.
+  // saat tidak ada entries yang perlu di-set (plannedLog kosong) — ref saja
+  // tidak akan memicu re-render di kasus itu.
   const [initialized, setInitialized] = useState(false)
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
 
-  // Isi entri awal sekali saja: pakai hasil yang sudah tersimpan hari ini
-  // kalau ada, kalau belum ada mulai dari rencana gerakan (dailyExerciseLogs).
-  // Tunggu KEDUA query selesai supaya tidak salah anggap "belum ada hasil"
-  // hanya karena query hasil belum resolve duluan. Penyesuaian dilakukan saat
-  // render (bukan di efek) dengan guard `initialized` supaya jalan sekali.
-  if (!initialized && plannedLog !== 'loading' && existingResult !== 'loading') {
+  // Isi entri awal sekali saja dari rencana gerakan (dailyExerciseLogs) —
+  // sengaja TIDAK memuat hasil yang sudah tersimpan sebelumnya di tanggal
+  // ini, karena satu tanggal sekarang bisa punya lebih dari satu sesi:
+  // setiap kali "Simpan hasil latihan" ditekan selalu membuat sesi baru,
+  // bukan menimpa sesi yang sudah ada. Penyesuaian dilakukan saat render
+  // (bukan di efek) dengan guard `initialized` supaya jalan sekali.
+  if (!initialized && plannedLog !== 'loading') {
     setInitialized(true)
-    if (existingResult) {
-      setEntries(existingResult.entries)
-    } else if (plannedLog) {
-      setEntries(plannedLog.exerciseIds.map(defaultEntry))
-    }
+    if (plannedLog) setEntries(plannedLog.entries)
   }
 
   function updateEntry(exerciseId: string, patch: Partial<WorkoutResultEntry>) {
@@ -92,7 +81,6 @@ export default function ActiveSessionPage() {
 
   async function confirmCancel() {
     setConfirmCancelOpen(false)
-    await saveDailyWorkoutResult(dateKey, [])
     await saveDailyExerciseLog(dateKey, [])
     navigate('/')
   }
@@ -105,7 +93,7 @@ export default function ActiveSessionPage() {
     )
   }
 
-  if (!plannedLog || plannedLog.exerciseIds.length === 0) {
+  if (!plannedLog || plannedLog.entries.length === 0) {
     return (
       <PageContainer variant="form">
         <p>Belum ada gerakan yang direncanakan untuk hari ini.</p>
@@ -240,44 +228,5 @@ export default function ActiveSessionPage() {
         onCancel={() => setConfirmCancelOpen(false)}
       />
     </PageContainer>
-  )
-}
-
-function NumberStepper({
-  label: fieldLabel,
-  value,
-  step,
-  min = 0,
-  onChange,
-}: {
-  label: string
-  value: number
-  step: number
-  min?: number
-  onChange: (next: number) => void
-}) {
-  return (
-    <div className="flex min-w-0 flex-col items-center gap-1">
-      <span className="truncate text-xs text-zinc-500">{fieldLabel}</span>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          aria-label={`Kurangi ${fieldLabel}`}
-          onClick={() => onChange(Math.max(min, roundStep(value - step)))}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-base text-zinc-300 active:bg-zinc-700"
-        >
-          &minus;
-        </button>
-        <span className="w-7 shrink-0 text-center text-sm font-medium tabular-nums">{value}</span>
-        <button
-          type="button"
-          aria-label={`Tambah ${fieldLabel}`}
-          onClick={() => onChange(roundStep(value + step))}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-base text-zinc-300 active:bg-zinc-700"
-        >
-          +
-        </button>
-      </div>
-    </div>
   )
 }

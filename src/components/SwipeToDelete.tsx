@@ -37,7 +37,10 @@ export default function SwipeToDelete({
   }
 
   function handlePointerDown(e: React.PointerEvent) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
+    // Swipe hanya untuk sentuh/pena. Mouse dibiarkan lewat sepenuhnya (tidak
+    // ada setPointerCapture, tidak ada tracking gerak). Tombol
+    // hapus untuk mouse disediakan lewat tombol hover terpisah di bawah.
+    if (e.pointerType === 'mouse') return
     e.currentTarget.setPointerCapture(e.pointerId)
     pointerId.current = e.pointerId
     startX.current = e.clientX
@@ -76,7 +79,7 @@ export default function SwipeToDelete({
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-xl ${className}`}>
+    <div className={`group relative overflow-hidden rounded-xl ${className}`}>
       <button
         type="button"
         onClick={() => {
@@ -106,6 +109,17 @@ export default function SwipeToDelete({
       >
         {children}
       </div>
+      {/* Pengganti swipe untuk mouse (desktop): swipe di atas sengaja
+          dimatikan untuk pointerType mouse, jadi tombol hapus di sini
+          muncul lewat hover supaya kemampuan hapus tetap ada. */}
+      <button
+        type="button"
+        onClick={onDelete}
+        aria-label={deleteLabel}
+        className="absolute right-2 top-2 z-10 hidden h-8 w-8 items-center justify-center rounded-full bg-zinc-950/80 text-zinc-400 opacity-0 shadow-md transition-opacity group-hover:opacity-100 hover:bg-red-500 hover:text-white md:flex"
+      >
+        &times;
+      </button>
     </div>
   )
 }

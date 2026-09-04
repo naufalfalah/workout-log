@@ -53,11 +53,11 @@ export default function HistoryPage() {
 
   async function confirmDelete() {
     if (!deleteTarget) return
-    const date = deleteTarget
+    const id = deleteTarget
     setDeleteTarget(null)
 
-    await deleteDailyWorkoutResult(date)
-    setSessions((prev) => prev.filter((session) => session.date !== date))
+    await deleteDailyWorkoutResult(id)
+    setSessions((prev) => prev.filter((session) => session.id !== id))
     // Menghapus satu baris menggeser posisi baris-baris berikutnya di query
     // terurut — offset paginasi harus ikut mundur satu supaya loadMore
     // berikutnya tidak melompati satu baris yang belum sempat ditampilkan.
@@ -95,12 +95,15 @@ export default function HistoryPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {sessions.map((session) => (
-            <SwipeToDelete key={session.date} onDelete={() => setDeleteTarget(session.date)}>
+            <SwipeToDelete key={session.id} onDelete={() => setDeleteTarget(session.id)}>
               <div className="flex flex-col gap-3 bg-zinc-900 p-3">
                 <p className="font-medium">
                   {format(new Date(session.date), 'EEEE, d MMMM yyyy', {
                     locale: localeId,
-                  })}
+                  })}{' '}
+                  <span className="font-normal text-zinc-500">
+                    · {format(new Date(session.createdAt), 'HH:mm')}
+                  </span>
                 </p>
 
                 <ul className="flex flex-col gap-2">

@@ -1,14 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie'
+import { ulid } from 'ulid'
 
 import type { Exercise, SimpleRoutine, Weight } from '@/domain/types'
-
-// Gerakan yang dilatih pada satu tanggal. Sengaja menyimpan daftar
-// exerciseId (disalin, bukan referensi ke Routine) supaya riwayat harian
-// tidak ikut berubah kalau routine sumbernya diedit atau dihapus nanti.
-export interface DailyExerciseLog {
-  date: string // 'yyyy-MM-dd'
-  exerciseIds: string[]
-}
 
 export interface WorkoutResultEntry {
   exerciseId: string
@@ -18,20 +11,29 @@ export interface WorkoutResultEntry {
   durationSec: number
 }
 
-// Hasil latihan sungguhan (set/rep/beban yang dicatat pengguna) untuk satu
-// tanggal. Terpisah dari DailyExerciseLog (rencana gerakan) supaya
-// merencanakan hari ini tidak langsung dianggap sudah dikerjakan.
-export interface DailyWorkoutResult {
+// Rencana gerakan untuk satu tanggal — bentuknya persis DailyWorkoutResult
+// (array WorkoutResultEntry) supaya target set/rep/beban/durasi (dari
+// routine yang dipilih, atau nilai default gerakan) sudah terisi begitu
+// pengguna sampai di /session/active, bukan mulai dari nol. Terpisah dari
+// DailyWorkoutResult supaya merencanakan hari ini tidak langsung dianggap
+// sudah dikerjakan — exerciseId disalin (bukan referensi ke Routine) supaya
+// riwayat harian tidak ikut berubah kalau routine sumbernya diedit/dihapus.
+export interface DailyExerciseLog {
   date: string // 'yyyy-MM-dd'
   entries: WorkoutResultEntry[]
 }
 
-// Tabel sementara: nilai target (set/rep/beban/durasi) hasil terjemahan dari
-// RoutineItem routine yang dipilih di /session, dikirim ke /session/active
-// sebagai nilai awal input numerik. Baris dihapus begitu sesi difinalisasi
-// atau dibatalkan — tidak dianggap data historis, jadi tidak ikut ekspor/impor.
-export interface DailyPlannedTargets {
+// Hasil latihan sungguhan (set/rep/beban yang dicatat pengguna). Terpisah
+// dari DailyExerciseLog (rencana gerakan) supaya merencanakan hari ini
+// tidak langsung dianggap sudah dikerjakan. Primary key-nya `id` (bukan
+// `date`) supaya satu tanggal bisa punya lebih dari satu sesi — `date`
+// jadi field biasa (terindeks) untuk kueri kalender/riwayat per tanggal,
+// dan `createdAt` dipakai untuk urutan kronologis (termasuk kalau ada
+// beberapa sesi di tanggal yang sama).
+export interface DailyWorkoutResult {
+  id: string // ULID
   date: string // 'yyyy-MM-dd'
+  createdAt: string // ISODate
   entries: WorkoutResultEntry[]
 }
 
@@ -58,8 +60,7 @@ class WorkoutDB extends Dexie {
   exercises!: EntityTable<Exercise, 'id'>
   routines!: EntityTable<SimpleRoutine, 'id'>
   dailyExerciseLogs!: EntityTable<DailyExerciseLog, 'date'>
-  dailyWorkoutResults!: EntityTable<DailyWorkoutResult, 'date'>
-  dailyPlannedTargets!: EntityTable<DailyPlannedTargets, 'date'>
+  dailyWorkoutResults!: EntityTable<DailyWorkoutResult, 'id'>
   settings!: EntityTable<AppSettings, 'id'>
   recoverySnapshot!: EntityTable<RecoverySnapshot, 'id'>
 
@@ -173,6 +174,97 @@ class WorkoutDB extends Dexie {
               entry.weight = toWeight(kg)
             }
           })
+      })
+    // DailyExerciseLog sekarang menyimpan entries: WorkoutResultEntry[]
+    // (persis bentuk DailyWorkoutResult) alih-alih exerciseIds: string[],
+    // supaya target set/rep/beban/durasi sudah terisi begitu sampai di
+    // /session/active. dailyPlannedTargets jadi tidak diperlukan lagi
+    // (fungsinya sudah tercakup langsung di dailyExerciseLogs) — dihapus.
+    this.version(8)
+      .stores({
+        exercises: 'id, name, equipment, isCustom, updatedAt',
+        routines: 'id, name, *tags, updatedAt, lastPerformedAt',
+        dailyExerciseLogs: 'date',
+        dailyWorkoutResults: 'date',
+        dailyPlannedTargets: null,
+        settings: 'id',
+        recoverySnapshot: 'id',
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table('dailyExerciseLogs')
+          .toCollection()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .modify((row: any) => {
+            const ids: string[] = row.exerciseIds ?? []
+            delete row.exerciseIds
+            row.entries = ids.map((exerciseId) => ({
+              exerciseId,
+              sets: 0,
+              reps: 0,
+              weight: { value: 0, unit: 'kg' },
+              durationSec: 0,
+            }))
+          })
+      })
+    // dailyWorkoutResults pindah primary key dari `date` ke `id`, supaya
+    // satu tanggal bisa punya lebih dari satu sesi latihan. IndexedDB tidak
+    // bisa mengubah keyPath store yang sudah ada di tempat — harus lewat
+    // tabel sementara (`dailyWorkoutResultsTmp`) lalu dipindahkan kembali
+    // ke nama semula di 2 versi berikutnya, supaya data lama tidak hilang:
+    //   v9  — tabel lama (`date`) TETAP ada (datanya aman), tabel baru
+    //         dibuat dengan nama sementara, isi lama disalin ke sana
+    //         sambil dikasih `id` + `createdAt`.
+    //   v10 — tabel lama akhirnya dihapus (isinya sudah aman di tabel
+    //         sementara).
+    //   v11 — tabel dengan nama asli dibuat lagi (kali ini keyPath `id`),
+    //         isi dipindah balik dari tabel sementara, tabel sementara
+    //         dihapus.
+    this.version(9)
+      .stores({
+        exercises: 'id, name, equipment, isCustom, updatedAt',
+        routines: 'id, name, *tags, updatedAt, lastPerformedAt',
+        dailyExerciseLogs: 'date',
+        dailyWorkoutResults: 'date',
+        dailyWorkoutResultsTmp: 'id, date, createdAt',
+        settings: 'id',
+        recoverySnapshot: 'id',
+      })
+      .upgrade(async (tx) => {
+        const old = await tx.table('dailyWorkoutResults').toArray()
+        const now = new Date().toISOString()
+        await tx.table('dailyWorkoutResultsTmp').bulkAdd(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          old.map((row: any) => ({
+            id: ulid(),
+            date: row.date,
+            createdAt: now,
+            entries: row.entries,
+          })),
+        )
+      })
+    this.version(10).stores({
+      exercises: 'id, name, equipment, isCustom, updatedAt',
+      routines: 'id, name, *tags, updatedAt, lastPerformedAt',
+      dailyExerciseLogs: 'date',
+      dailyWorkoutResults: null,
+      dailyWorkoutResultsTmp: 'id, date, createdAt',
+      settings: 'id',
+      recoverySnapshot: 'id',
+    })
+    this.version(11)
+      .stores({
+        exercises: 'id, name, equipment, isCustom, updatedAt',
+        routines: 'id, name, *tags, updatedAt, lastPerformedAt',
+        dailyExerciseLogs: 'date',
+        dailyWorkoutResults: 'id, date, createdAt',
+        dailyWorkoutResultsTmp: null,
+        settings: 'id',
+        recoverySnapshot: 'id',
+      })
+      .upgrade(async (tx) => {
+        const rows = await tx.table('dailyWorkoutResultsTmp').toArray()
+        await tx.table('dailyWorkoutResults').bulkAdd(rows)
       })
   }
 }

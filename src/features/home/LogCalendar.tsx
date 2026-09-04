@@ -17,8 +17,8 @@ import { formatWorkoutEntrySummary } from '@/components/exerciseLabels'
 import PhotoPlaceholderIcon from '@/components/PhotoPlaceholderIcon'
 import { useExercises } from '../exercises/exercises.store'
 import {
-  useDailyWorkoutResult,
   useDailyWorkoutResultDates,
+  useDailyWorkoutResultsForDate,
 } from '../session/dailyWorkoutResults.store'
 
 const weekdayLabels = ['S', 'S', 'R', 'K', 'J', 'S', 'M']
@@ -33,7 +33,7 @@ export default function LogCalendar() {
 
   const sessionDates = useDailyWorkoutResultDates()
   const exercises = useExercises()
-  const selectedSession = useDailyWorkoutResult(selectedDate ? toKey(selectedDate) : '')
+  const selectedSessions = useDailyWorkoutResultsForDate(selectedDate ? toKey(selectedDate) : '')
 
   // Selalu 6 minggu (42 hari) apa pun bulannya
   const gridStart = startOfWeek(startOfMonth(visibleMonth), { weekStartsOn: 1 })
@@ -131,35 +131,48 @@ export default function LogCalendar() {
             </button>
           </div>
 
-          {selectedSession === 'loading' ? (
+          {selectedSessions === 'loading' ? (
             <p className="text-sm text-zinc-500">Memuat...</p>
-          ) : selectedSession && selectedSession.entries.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {selectedSession.entries.map((entry) => {
-                const exercise = exercises.find((ex) => ex.id === entry.exerciseId)
-                return (
-                  <li key={entry.exerciseId} className="flex items-center gap-3">
-                    {exercise?.imageUrl ? (
-                      <img
-                        src={exercise.imageUrl}
-                        alt=""
-                        className="h-10 w-10 shrink-0 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-zinc-600">
-                        <PhotoPlaceholderIcon className="h-5 w-5" />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{exercise?.name ?? entry.exerciseId}</p>
-                      <p className="text-sm text-zinc-400">
-                        {formatWorkoutEntrySummary(entry, exercise)}
-                      </p>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+          ) : selectedSessions.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              {selectedSessions.map((session, index) => (
+                <div key={session.id} className="flex flex-col gap-2">
+                  {selectedSessions.length > 1 && (
+                    <p className="text-xs font-medium text-zinc-500">
+                      Sesi {index + 1} · {format(new Date(session.createdAt), 'HH:mm')}
+                    </p>
+                  )}
+                  <ul className="flex flex-col gap-2">
+                    {session.entries.map((entry) => {
+                      const exercise = exercises.find((ex) => ex.id === entry.exerciseId)
+                      return (
+                        <li key={entry.exerciseId} className="flex items-center gap-3">
+                          {exercise?.imageUrl ? (
+                            <img
+                              src={exercise.imageUrl}
+                              alt=""
+                              className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-zinc-600">
+                              <PhotoPlaceholderIcon className="h-5 w-5" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">
+                              {exercise?.name ?? entry.exerciseId}
+                            </p>
+                            <p className="text-sm text-zinc-400">
+                              {formatWorkoutEntrySummary(entry, exercise)}
+                            </p>
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
           ) : (
             <p className="text-sm text-zinc-500">Tidak ada sesi latihan pada tanggal ini.</p>
           )}
