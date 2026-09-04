@@ -4,7 +4,8 @@ import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 
 import PageContainer from '@/app/PageContainer'
-import type { Exercise } from '@/domain/types'
+import type { Exercise, SimpleRoutineItem } from '@/domain/types'
+import type { WorkoutResultEntry } from '@/db/schema'
 import { label } from '@/components/exerciseLabels'
 import ExercisePicker from '@/components/ExercisePicker'
 import { useExercises } from '../exercises/exercises.store'
@@ -16,6 +17,22 @@ function todayKey(): string {
   return format(new Date(), 'yyyy-MM-dd')
 }
 
+// Entri awal untuk satu gerakan: pakai target dari item routine (kalau
+// dipilih dari routine) dulu, baru nilai default gerakan itu sendiri.
+function buildEntry(
+  exerciseId: string,
+  exercise: Exercise | undefined,
+  routineItem?: SimpleRoutineItem,
+): WorkoutResultEntry {
+  return {
+    exerciseId,
+    sets: routineItem?.targetSets ?? exercise?.defaultSets ?? 0,
+    reps: routineItem?.targetReps ?? exercise?.defaultReps ?? 0,
+    weight: routineItem?.targetWeight ?? exercise?.defaultWeight ?? { value: 0, unit: 'kg' },
+    durationSec: routineItem?.targetDurationSec ?? exercise?.defaultDurationSec ?? 0,
+  }
+}
+
 export default function RecordSessionPage() {
   const navigate = useNavigate()
   const dateKey = todayKey()
@@ -24,38 +41,54 @@ export default function RecordSessionPage() {
   const exercises = useExercises()
   const existingLog = useDailyExerciseLog(dateKey)
 
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [entries, setEntries] = useState<WorkoutResultEntry[]>([])
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null)
   const [initialized, setInitialized] = useState(false)
 
   if (!initialized && existingLog !== 'loading') {
     setInitialized(true)
-    if (existingLog) setSelectedIds(existingLog.exerciseIds)
+    if (existingLog) setEntries(existingLog.entries)
   }
 
   function pickRoutine(routineId: string) {
     const routine = routines.find((r) => r.id === routineId)
     if (!routine) return
-    const ids = routine.items.map((item) => item.exerciseId)
     setSelectedRoutineId(routineId)
-    setSelectedIds(ids)
+    setEntries(
+      routine.items.map((item) =>
+        buildEntry(
+          item.exerciseId,
+          exercises.find((ex) => ex.id === item.exerciseId),
+          item,
+        ),
+      ),
+    )
   }
 
   function removeExercise(exerciseId: string) {
-    setSelectedIds((prev) => prev.filter((eid) => eid !== exerciseId))
+    setEntries((prev) => prev.filter((entry) => entry.exerciseId !== exerciseId))
   }
 
   function addExercise(exerciseId: string) {
-    setSelectedIds((prev) => (prev.includes(exerciseId) ? prev : [...prev, exerciseId]))
+    setEntries((prev) => {
+      if (prev.some((entry) => entry.exerciseId === exerciseId)) return prev
+      return [
+        ...prev,
+        buildEntry(
+          exerciseId,
+          exercises.find((ex) => ex.id === exerciseId),
+        ),
+      ]
+    })
   }
 
   async function handleSave() {
-    await saveDailyExerciseLog(dateKey, selectedIds)
+    await saveDailyExerciseLog(dateKey, entries)
     navigate('/session/active')
   }
 
-  const selectedExercises = selectedIds
-    .map((eid) => exercises.find((ex) => ex.id === eid))
+  const selectedExercises = entries
+    .map((entry) => exercises.find((ex) => ex.id === entry.exerciseId))
     .filter((ex): ex is Exercise => Boolean(ex))
 
   return (
@@ -138,13 +171,17 @@ export default function RecordSessionPage() {
         )}
 
         <hr className="my-2 border-zinc-800" />
-        <AddExercisePicker exercises={exercises} excludeIds={selectedIds} onAdd={addExercise} />
+        <AddExercisePicker
+          exercises={exercises}
+          excludeIds={entries.map((entry) => entry.exerciseId)}
+          onAdd={addExercise}
+        />
       </section>
 
       <button
         type="button"
         onClick={handleSave}
-        disabled={selectedIds.length === 0}
+        disabled={entries.length === 0}
         className="h-14 rounded-2xl bg-primary-500 text-lg font-semibold text-white active:bg-primary-600 disabled:opacity-50"
       >
         Mulai latihan

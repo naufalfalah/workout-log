@@ -97,11 +97,6 @@ const simpleRoutineSchema = z.object({
 
 const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus yyyy-MM-dd')
 
-const dailyExerciseLogSchema = z.object({
-  date: dateKey,
-  exerciseIds: z.array(z.string()),
-})
-
 const workoutResultEntrySchema = z.object({
   exerciseId: z.string(),
   sets: z.number(),
@@ -110,8 +105,17 @@ const workoutResultEntrySchema = z.object({
   durationSec: z.number(),
 })
 
-const dailyWorkoutResultSchema = z.object({
+const dailyExerciseLogSchema = z.object({
   date: dateKey,
+  entries: z.array(workoutResultEntrySchema),
+})
+
+// id sebagai primary key (bukan date) — satu tanggal boleh punya lebih dari
+// satu sesi latihan, lihat catatan di db/schema.ts.
+const dailyWorkoutResultSchema = z.object({
+  id: z.string(),
+  date: dateKey,
+  createdAt: isoDate,
   entries: z.array(workoutResultEntrySchema),
 })
 

@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+import { ulid } from 'ulid'
 
 import { db, type DailyExerciseLog, type DailyWorkoutResult } from '@/db/schema'
 import type { Exercise, SimpleRoutine } from '@/domain/types'
@@ -46,14 +47,25 @@ export function parseImportFile(text: string): ParseResult {
 }
 
 // Rantai migrasi skema lama -> baru, dijalankan di atas JSON mentah (belum
-// divalidasi Zod). schemaVersion 1 -> 2: beban pindah dari selalu-kg
-// (weightKg / kg) ke {value, unit} — data lama diasumsikan unit 'kg' karena
-// itu satu-satunya unit yang pernah dipakai sebelum migrasi ini.
+// divalidasi Zod) — tiap langkah menaikkan schemaVersion satu per satu
+// supaya file yang jauh lebih lama tetap bisa diimpor lewat langkah-langkah
+// berikutnya secara berurutan.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function migrateRawToLatest(json: any): unknown {
   if (typeof json !== 'object' || json === null) return json
-  if (json.schemaVersion !== 1) return json
 
+  let current = json
+  if (current.schemaVersion === 1) current = migrateV1ToV2(current)
+  if (current.schemaVersion === 2) current = migrateV2ToV3(current)
+  if (current.schemaVersion === 3) current = migrateV3ToV4(current)
+  return current
+}
+
+// schemaVersion 1 -> 2: beban pindah dari selalu-kg (weightKg / kg) ke
+// {value, unit} — data lama diasumsikan unit 'kg' karena itu satu-satunya
+// unit yang pernah dipakai sebelum migrasi ini.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function migrateV1ToV2(json: any): unknown {
   const toWeight = (kg: unknown) => ({ value: typeof kg === 'number' ? kg : 0, unit: 'kg' })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const migrateLoadTarget = (target: any) => {
@@ -106,6 +118,63 @@ function migrateRawToLatest(json: any): unknown {
   }
 }
 
+// schemaVersion 2 -> 3: dailyExerciseLogs pindah dari { exerciseIds: string[] }
+// ke { entries: WorkoutResultEntry[] } — persis bentuk dailyWorkoutResults —
+// supaya target set/rep/beban/durasi ikut tersimpan. Baris lama diisi nilai
+// 0 karena file lama tidak pernah menyimpan angka target sama sekali.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function migrateV2ToV3(json: any): unknown {
+  return {
+    ...json,
+    schemaVersion: 3,
+    data: {
+      ...json.data,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dailyExerciseLogs: (json.data?.dailyExerciseLogs ?? []).map((row: any) => {
+        if (Array.isArray(row.entries)) return row
+        const ids: string[] = row.exerciseIds ?? []
+        const rest = { ...row }
+        delete rest.exerciseIds
+        return {
+          ...rest,
+          entries: ids.map((exerciseId) => ({
+            exerciseId,
+            sets: 0,
+            reps: 0,
+            weight: { value: 0, unit: 'kg' },
+            durationSec: 0,
+          })),
+        }
+      }),
+    },
+  }
+}
+
+// schemaVersion 3 -> 4: dailyWorkoutResults pindah primary key dari `date`
+// ke `id` (lihat catatan di db/schema.ts) — supaya satu tanggal bisa punya
+// lebih dari satu sesi latihan. Baris lama dikasih id baru + createdAt
+// perkiraan (tengah hari pada tanggalnya, tidak ada waktu asli yang bisa
+// dipulihkan dari data lama).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function migrateV3ToV4(json: any): unknown {
+  return {
+    ...json,
+    schemaVersion: 4,
+    data: {
+      ...json.data,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dailyWorkoutResults: (json.data?.dailyWorkoutResults ?? []).map((row: any) => {
+        if (typeof row.id === 'string') return row
+        return {
+          ...row,
+          id: ulid(),
+          createdAt: `${row.date}T12:00:00.000Z`,
+        }
+      }),
+    },
+  }
+}
+
 async function snapshotCurrentState(): Promise<void> {
   const [exercises, routines, dailyExerciseLogs, dailyWorkoutResults] = await Promise.all([
     db.exercises.toArray(),
@@ -149,11 +218,10 @@ async function mergeAuditable<T extends { id: string; updatedAt: string }>(
   }
 }
 
-// dailyExerciseLogs & dailyWorkoutResults tidak punya field Auditable (cuma
-// keyed oleh tanggal, tanpa updatedAt) — jadi "gabungkan" untuk kedua tabel
-// ini berarti: tanggal baru ditambahkan, tanggal yang sudah ada ditimpa isi
-// dari file (tidak ada timestamp yang bisa dibandingkan untuk tahu mana
-// yang lebih baru).
+// dailyExerciseLogs tidak punya field Auditable (cuma keyed oleh tanggal,
+// tanpa updatedAt) — jadi "gabungkan" berarti: tanggal baru ditambahkan,
+// tanggal yang sudah ada ditimpa isi dari file (tidak ada timestamp yang
+// bisa dibandingkan untuk tahu mana yang lebih baru).
 async function mergeByDateKey<T extends { date: string }>(
   table: MergeableTable<T>,
   incoming: T[],
@@ -167,6 +235,26 @@ async function mergeByDateKey<T extends { date: string }>(
     } else {
       await table.put(record)
       summary.updated += 1
+    }
+  }
+}
+
+// dailyWorkoutResults keyed oleh `id` dan bersifat immutable (satu sesi
+// yang sudah tersimpan tidak pernah diedit lagi) — jadi "gabungkan" di sini
+// sederhana: id yang belum ada ditambahkan, id yang sudah ada dilewati
+// (sudah persis sama, tidak ada yang perlu ditimpa).
+async function mergeById<T extends { id: string }>(
+  table: MergeableTable<T>,
+  incoming: T[],
+  summary: ImportSummary,
+): Promise<void> {
+  for (const record of incoming) {
+    const existing = await table.get(record.id)
+    if (!existing) {
+      await table.add(record)
+      summary.added += 1
+    } else {
+      summary.skipped += 1
     }
   }
 }
@@ -219,7 +307,7 @@ export async function runImport(file: ImportFile, mode: ImportMode): Promise<Imp
         file.data.dailyExerciseLogs,
         summary,
       )
-      await mergeByDateKey<DailyWorkoutResult>(
+      await mergeById<DailyWorkoutResult>(
         db.dailyWorkoutResults,
         file.data.dailyWorkoutResults,
         summary,

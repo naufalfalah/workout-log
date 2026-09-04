@@ -24,7 +24,7 @@ export interface ExerciseDefaultsPatch {
 }
 
 export function useExercises(): Exercise[] {
-  return useLiveQuery(() => db.exercises.toArray(), []) ?? []
+  return useLiveQuery(() => db.exercises.orderBy('name').toArray(), []) ?? []
 }
 
 export function useExercise(id: string | undefined): Exercise | undefined {

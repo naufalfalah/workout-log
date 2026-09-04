@@ -17,7 +17,7 @@ export default function HomePage() {
 
   const todayLog = useDailyExerciseLog(todayKey())
   const hasActiveSession =
-    todayLog !== 'loading' && todayLog !== null && todayLog.exerciseIds.length > 0
+    todayLog !== 'loading' && todayLog !== null && todayLog.entries.length > 0
 
   return (
     <>
