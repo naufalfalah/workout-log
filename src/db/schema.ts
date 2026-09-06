@@ -266,6 +266,33 @@ class WorkoutDB extends Dexie {
         const rows = await tx.table('dailyWorkoutResultsTmp').toArray()
         await tx.table('dailyWorkoutResults').bulkAdd(rows)
       })
+    // Routine peninggalan model lama (blocks[].items, lihat v7) belum pernah
+    // dipindahkan ke bentuk items[] datar saat SimpleRoutine disederhanakan —
+    // record itu nyangkut tanpa field `items` sama sekali dan bikin setiap
+    // `routine.items.some(...)` di kode terbaru meledak. Migrasi ini
+    // meratakan blocks[].items yang tersisa jadi items[], atau setidaknya
+    // menjamin field items selalu berupa array.
+    this.version(12)
+      .stores({
+        exercises: 'id, name, equipment, isCustom, updatedAt',
+        routines: 'id, name, *tags, updatedAt, lastPerformedAt',
+        dailyExerciseLogs: 'date',
+        dailyWorkoutResults: 'id, date, createdAt',
+        settings: 'id',
+        recoverySnapshot: 'id',
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table('routines')
+          .toCollection()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .modify((routine: any) => {
+            if (Array.isArray(routine.items)) return
+            const blocks = routine.blocks ?? []
+            routine.items = blocks.flatMap((block: any) => block.items ?? [])
+            delete routine.blocks
+          })
+      })
   }
 }
 

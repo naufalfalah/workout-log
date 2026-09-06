@@ -55,7 +55,7 @@ export default function RecordSessionPage() {
     if (!routine) return
     setSelectedRoutineId(routineId)
     setEntries(
-      routine.items.map((item) =>
+      (routine.items ?? []).map((item) =>
         buildEntry(
           item.exerciseId,
           exercises.find((ex) => ex.id === item.exerciseId),

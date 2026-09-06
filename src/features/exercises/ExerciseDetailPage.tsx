@@ -49,7 +49,7 @@ export default function ExerciseDetailPage() {
   }
 
   const usedInRoutines = routines.filter((routine) =>
-    routine.items.some((item) => item.exerciseId === exercise.id),
+    (routine.items ?? []).some((item) => item.exerciseId === exercise.id),
   )
 
   return (
