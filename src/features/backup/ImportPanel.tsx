@@ -88,7 +88,7 @@ export default function ImportPanel() {
         onClick={() => fileInputRef.current?.click()}
         className="mt-1 h-12 rounded-xl bg-zinc-800 text-sm font-semibold text-zinc-200 active:bg-zinc-700"
       >
-        Pilih file cadangan
+        Impor File
       </button>
 
       {hasSnapshot && (

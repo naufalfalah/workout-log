@@ -103,6 +103,7 @@ const workoutResultEntrySchema = z.object({
   reps: z.number(),
   weight: weightSchema,
   durationSec: z.number(),
+  completed: z.boolean().optional(),
 })
 
 const dailyExerciseLogSchema = z.object({

@@ -23,6 +23,14 @@ export function useDailyWorkoutResultDates(): Set<string> {
   return new Set(rows.map((row) => row.date))
 }
 
+export function useDailyWorkoutResult(id: string): DailyWorkoutResult | null | 'loading' {
+  return useLiveQuery(
+    async () => (await db.dailyWorkoutResults.get(id)) ?? null,
+    [id],
+    'loading' as const,
+  )
+}
+
 // Diurutkan dari yang paling baru dikerjakan ke yang paling lama — dipakai
 // createdAt (bukan date) supaya beberapa sesi di tanggal yang sama tetap
 // terurut benar relatif satu sama lain.
@@ -84,4 +92,11 @@ export async function saveDailyWorkoutResult(
 
 export async function deleteDailyWorkoutResult(id: string): Promise<void> {
   await db.dailyWorkoutResults.delete(id)
+}
+
+export async function updateDailyWorkoutResultEntries(
+  id: string,
+  entries: WorkoutResultEntry[],
+): Promise<void> {
+  await db.dailyWorkoutResults.update(id, { entries })
 }

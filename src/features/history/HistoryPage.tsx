@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 
@@ -97,14 +98,22 @@ export default function HistoryPage() {
           {sessions.map((session) => (
             <SwipeToDelete key={session.id} onDelete={() => setDeleteTarget(session.id)}>
               <div className="flex flex-col gap-3 bg-zinc-900 p-3">
-                <p className="font-medium">
-                  {format(new Date(session.date), 'EEEE, d MMMM yyyy', {
-                    locale: localeId,
-                  })}{' '}
-                  <span className="font-normal text-zinc-500">
-                    · {format(new Date(session.createdAt), 'HH:mm')}
-                  </span>
-                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium">
+                    {format(new Date(session.date), 'EEEE, d MMMM yyyy', {
+                      locale: localeId,
+                    })}{' '}
+                    <span className="font-normal text-zinc-500">
+                      · {format(new Date(session.createdAt), 'HH:mm')}
+                    </span>
+                  </p>
+                  <Link
+                    to={`/history/${session.id}/edit`}
+                    className="shrink-0 rounded-lg bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-300 active:bg-zinc-700 md:mr-8"
+                  >
+                    Edit
+                  </Link>
+                </div>
 
                 <ul className="flex flex-col gap-2">
                   {session.entries.map((entry) => {
@@ -130,6 +139,15 @@ export default function HistoryPage() {
                             {formatWorkoutEntrySummary(entry, exercise)}
                           </p>
                         </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${
+                            entry.completed
+                              ? 'bg-primary-500/20 text-primary-400'
+                              : 'bg-zinc-800 text-zinc-500'
+                          }`}
+                        >
+                          {entry.completed ? 'Selesai' : 'Belum selesai'}
+                        </span>
                       </li>
                     )
                   })}

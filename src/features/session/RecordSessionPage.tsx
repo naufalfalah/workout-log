@@ -30,6 +30,7 @@ function buildEntry(
     reps: routineItem?.targetReps ?? exercise?.defaultReps ?? 0,
     weight: routineItem?.targetWeight ?? exercise?.defaultWeight ?? { value: 0, unit: 'kg' },
     durationSec: routineItem?.targetDurationSec ?? exercise?.defaultDurationSec ?? 0,
+    completed: false,
   }
 }
 
