@@ -290,6 +290,7 @@ class WorkoutDB extends Dexie {
           .modify((routine: any) => {
             if (Array.isArray(routine.items)) return
             const blocks = routine.blocks ?? []
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             routine.items = blocks.flatMap((block: any) => block.items ?? [])
             delete routine.blocks
           })
