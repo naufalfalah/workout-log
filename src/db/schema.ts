@@ -9,6 +9,7 @@ export interface WorkoutResultEntry {
   reps: number
   weight: Weight
   durationSec: number
+  completed?: boolean
 }
 
 // Rencana gerakan untuk satu tanggal — bentuknya persis DailyWorkoutResult

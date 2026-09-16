@@ -1,61 +1,58 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 
-import ConfirmDialog from '@/app/ConfirmDialog'
 import PageContainer from '@/app/PageContainer'
 import type { Exercise } from '@/domain/types'
 import type { WorkoutResultEntry } from '@/db/schema'
 import { hasDurationField, hasWeightField, label } from '@/components/exerciseLabels'
 import CheckIcon from '@/components/CheckIcon'
+import ExercisePicker from '@/components/ExercisePicker'
 import NumberStepper from '@/components/NumberStepper'
 import PhotoPlaceholderIcon from '@/components/PhotoPlaceholderIcon'
 import { useExercises } from '../exercises/exercises.store'
-import { saveDailyExerciseLog, useDailyExerciseLog } from './dailyExerciseLogs.store'
-import { saveDailyWorkoutResult } from './dailyWorkoutResults.store'
-
-function todayKey(): string {
-  return format(new Date(), 'yyyy-MM-dd')
-}
+import { updateDailyWorkoutResultEntries, useDailyWorkoutResult } from '../session/dailyWorkoutResults.store'
 
 function weightStep(exercise: Exercise): number {
   return exercise.equipment === 'dumbbell' ? 1 : 2.5
 }
 
-// Entri dianggap belum diisi kalau semua nilainya masih 0 — berarti
-// pengguna belum benar-benar mencatat apa pun untuk gerakan ini.
+// Entri dianggap belum diisi kalau semua nilainya masih 0 — sama seperti
+// aturan di /session/active (lihat ActiveSessionPage.tsx).
 function isEntryEmpty(entry: WorkoutResultEntry): boolean {
   return entry.sets === 0 && entry.reps === 0 && entry.weight.value === 0 && entry.durationSec === 0
 }
 
-export default function ActiveSessionPage() {
+function buildEntry(exerciseId: string, exercise: Exercise | undefined): WorkoutResultEntry {
+  return {
+    exerciseId,
+    sets: exercise?.defaultSets ?? 0,
+    reps: exercise?.defaultReps ?? 0,
+    weight: exercise?.defaultWeight ?? { value: 0, unit: 'kg' },
+    durationSec: exercise?.defaultDurationSec ?? 0,
+    completed: false,
+  }
+}
+
+export default function HistoryEditPage() {
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const dateKey = todayKey()
 
   const exercises = useExercises()
-  const plannedLog = useDailyExerciseLog(dateKey)
+  const session = useDailyWorkoutResult(id ?? '')
 
   const [entries, setEntries] = useState<WorkoutResultEntry[]>([])
-  // Baru menampilkan tanda merah pada kartu yang kosong setelah pengguna
-  // benar-benar mencoba menyimpan — supaya tidak langsung penuh warna
-  // merah saat halaman pertama kali dibuka.
   const [showValidation, setShowValidation] = useState(false)
-  // State (bukan ref) supaya perubahan selalu memicu render ulang, termasuk
-  // saat tidak ada entries yang perlu di-set (plannedLog kosong) — ref saja
-  // tidak akan memicu re-render di kasus itu.
   const [initialized, setInitialized] = useState(false)
-  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
 
-  // Isi entri awal sekali saja dari rencana gerakan (dailyExerciseLogs) —
-  // sengaja TIDAK memuat hasil yang sudah tersimpan sebelumnya di tanggal
-  // ini, karena satu tanggal sekarang bisa punya lebih dari satu sesi:
-  // setiap kali "Simpan hasil latihan" ditekan selalu membuat sesi baru,
-  // bukan menimpa sesi yang sudah ada. Penyesuaian dilakukan saat render
-  // (bukan di efek) dengan guard `initialized` supaya jalan sekali.
-  if (!initialized && plannedLog !== 'loading') {
+  // Sama seperti ActiveSessionPage: isi entri awal sekali saja dari sesi
+  // tersimpan, disesuaikan saat render (bukan di efek) dengan guard
+  // `initialized` supaya jalan sekali walau useDailyWorkoutResult ikut
+  // berubah tiap kali handleSave menulis ke tabel yang sama.
+  if (!initialized && session !== 'loading') {
     setInitialized(true)
-    if (plannedLog) setEntries(plannedLog.entries)
+    if (session) setEntries(session.entries)
   }
 
   function updateEntry(exerciseId: string, patch: Partial<WorkoutResultEntry>) {
@@ -72,29 +69,31 @@ export default function ActiveSessionPage() {
     )
   }
 
+  function removeExercise(exerciseId: string) {
+    setEntries((prev) => prev.filter((entry) => entry.exerciseId !== exerciseId))
+  }
+
+  function addExercise(exerciseId: string) {
+    setEntries((prev) => {
+      if (prev.some((entry) => entry.exerciseId === exerciseId)) return prev
+      return [...prev, buildEntry(exerciseId, exercises.find((ex) => ex.id === exerciseId))]
+    })
+  }
+
   async function handleSave() {
-    const hasInvalidEntry = entries.some(isEntryEmpty)
-    if (hasInvalidEntry) {
+    if (!id) return
+    if (entries.length === 0 || entries.some(isEntryEmpty)) {
       setShowValidation(true)
       return
     }
 
-    // Simpan hasil (set/rep/beban/durasi) tiap gerakan untuk tanggal hari
-    // ini, lalu hapus rencana aktif (dailyExerciseLogs) supaya lain kali
-    // pengguna membuka /session/active dianggap belum ada sesi berjalan
-    // dan bisa mulai sesi baru dari nol.
-    await saveDailyWorkoutResult(dateKey, entries)
-    await saveDailyExerciseLog(dateKey, [])
-    navigate('/')
+    await updateDailyWorkoutResultEntries(id, entries)
+    navigate('/history')
   }
 
-  async function confirmCancel() {
-    setConfirmCancelOpen(false)
-    await saveDailyExerciseLog(dateKey, [])
-    navigate('/')
-  }
+  if (!id) return null
 
-  if (plannedLog === 'loading' || !initialized) {
+  if (session === 'loading' || !initialized) {
     return (
       <PageContainer variant="form">
         <p className="text-zinc-500">Memuat...</p>
@@ -102,31 +101,29 @@ export default function ActiveSessionPage() {
     )
   }
 
-  if (!plannedLog || plannedLog.entries.length === 0) {
+  if (!session) {
     return (
       <PageContainer variant="form">
-        <p>Belum ada gerakan yang direncanakan untuk hari ini.</p>
-        <Link to="/session" className="text-primary-400">
-          Pilih gerakan dulu
+        <p>Sesi ini tidak ditemukan. Mungkin sudah dihapus.</p>
+        <Link to="/history" className="text-primary-400">
+          Kembali ke riwayat
         </Link>
       </PageContainer>
     )
   }
 
-  const completedCount = entries.filter((entry) => entry.completed === true).length
-
   return (
     <PageContainer variant="form">
       <header className="pt-2">
-        <Link to="/" className="text-sm text-zinc-400 md:hidden">
-          &larr; Beranda
+        <Link to="/history" className="text-sm text-zinc-400">
+          &larr; Riwayat
         </Link>
-        <h1 className="text-2xl font-semibold">Latihan Berjalan</h1>
+        <h1 className="text-2xl font-semibold">Edit Sesi Latihan</h1>
         <p className="text-sm text-zinc-400">
-          {format(new Date(), 'EEEE, d MMMM yyyy', { locale: localeId })}
-        </p>
-        <p className="mt-1 text-sm text-primary-400">
-          {completedCount} / {entries.length} gerakan selesai
+          {format(new Date(session.date), 'EEEE, d MMMM yyyy', { locale: localeId })}{' '}
+          <span className="text-zinc-500">
+            · dicatat {format(new Date(session.createdAt), 'HH:mm')}
+          </span>
         </p>
       </header>
 
@@ -189,6 +186,14 @@ export default function ActiveSessionPage() {
                   </span>
                   Selesai
                 </button>
+                <button
+                  type="button"
+                  onClick={() => removeExercise(entry.exerciseId)}
+                  aria-label={`Hapus ${exercise.name} dari sesi`}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 active:bg-zinc-700"
+                >
+                  &times;
+                </button>
               </div>
 
               <div className="flex flex-col gap-3 p-3">
@@ -235,39 +240,59 @@ export default function ActiveSessionPage() {
         })}
       </div>
 
-      {showValidation && entries.some(isEntryEmpty) && (
+      <AddExercisePicker
+        exercises={exercises}
+        excludeIds={entries.map((entry) => entry.exerciseId)}
+        onAdd={addExercise}
+      />
+
+      {showValidation && (entries.length === 0 || entries.some(isEntryEmpty)) && (
         <p className="text-sm text-red-400">
-          Ada gerakan yang belum dicatat. Isi minimal satu nilai sebelum menyimpan.
+          {entries.length === 0
+            ? 'Sesi tidak boleh kosong. Tambah minimal satu gerakan.'
+            : 'Ada gerakan yang belum dicatat. Isi minimal satu nilai, atau hapus gerakan itu.'}
         </p>
       )}
 
-      <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={handleSave}
-          className="h-14 rounded-2xl bg-primary-500 text-lg font-semibold text-white active:bg-primary-600"
-        >
-          Simpan hasil latihan
-        </button>
-        <button
-          type="button"
-          onClick={() => setConfirmCancelOpen(true)}
-          className="h-12 rounded-2xl bg-transparent text-base font-medium text-red-400 active:bg-zinc-900"
-        >
-          Batalkan latihan
-        </button>
-      </div>
-
-      <ConfirmDialog
-        open={confirmCancelOpen}
-        title="Batalkan latihan?"
-        message="Hasil yang sudah dicatat untuk hari ini akan dihapus."
-        confirmLabel="Batalkan"
-        cancelLabel="Tidak"
-        danger
-        onConfirm={confirmCancel}
-        onCancel={() => setConfirmCancelOpen(false)}
-      />
+      <button
+        type="button"
+        onClick={handleSave}
+        className="h-14 rounded-2xl bg-primary-500 text-lg font-semibold text-white active:bg-primary-600"
+      >
+        Simpan perubahan
+      </button>
     </PageContainer>
+  )
+}
+
+function AddExercisePicker({
+  exercises,
+  excludeIds,
+  onAdd,
+}: {
+  exercises: Exercise[]
+  excludeIds: string[]
+  onAdd: (exerciseId: string) => void
+}) {
+  const options = exercises.filter((ex) => !excludeIds.includes(ex.id))
+  const [value, setValue] = useState('')
+
+  if (options.length > 0 && !options.some((ex) => ex.id === value)) {
+    setValue(options[0].id)
+  }
+
+  if (options.length === 0) return null
+
+  return (
+    <div className="flex gap-2">
+      <ExercisePicker exercises={options} value={value} onChange={setValue} className="flex-1" />
+      <button
+        type="button"
+        onClick={() => value && onAdd(value)}
+        className="h-11 rounded-lg bg-zinc-900 px-4 text-sm text-zinc-300"
+      >
+        + Tambah
+      </button>
+    </div>
   )
 }

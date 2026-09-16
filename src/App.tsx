@@ -8,6 +8,7 @@ import ExerciseListPage from './features/exercises/ExerciseListPage'
 import ExerciseFormPage from './features/exercises/ExerciseFormPage'
 import ExerciseDetailPage from './features/exercises/ExerciseDetailPage'
 import HistoryPage from './features/history/HistoryPage'
+import HistoryEditPage from './features/history/HistoryEditPage'
 import RecordSessionPage from './features/session/RecordSessionPage'
 import ActiveSessionPage from './features/session/ActiveSessionPage'
 import SettingsPage from './features/settings/SettingsPage'
@@ -24,6 +25,7 @@ function App() {
         <Route path="/exercises/new" element={<ExerciseFormPage />} />
         <Route path="/exercises/:id" element={<ExerciseDetailPage />} />
         <Route path="/history" element={<HistoryPage />} />
+        <Route path="/history/:id/edit" element={<HistoryEditPage />} />
         <Route path="/session" element={<RecordSessionPage />} />
         <Route path="/session/active" element={<ActiveSessionPage />} />
         <Route path="/settings" element={<SettingsPage />} />

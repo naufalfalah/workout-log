@@ -22,7 +22,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.ico', 'icons/favicon.svg', 'icons/apple-touch-icon-180.png'],
       manifest: {
         name: 'Workout Log',
         short_name: 'Workout',
